@@ -1,0 +1,18 @@
+[project]
+name="sigk"
+version="0.0.0"
+requires-python = ">= 3.11"
+authors = [
+  {name = "Grzegorz Czarnecki", email = "01158613@pw.edu.pl"},
+]
+dependencies=[
+    "pytest",
+    "black",
+    "ruff",
+    "wget",
+    "numpy",
+    "click",
+]
+
+[tool.setuptools]
+packages = ["sigk"]
