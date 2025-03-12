@@ -48,7 +48,7 @@ class PartialConv2d(Conv2d):
             tensor([prod(self.weight.shape[1:])], dtype=dtype, device=device),
         )
         self.__epsilon = epsilon
-        self.bias = self.bias.view(1, self.bias.shape[0], 1, 1)
+        self.bias.data = self.bias.data.view(1, self.bias.shape[0], 1, 1)
 
     @property
     def epsilon(self) -> float:
