@@ -48,7 +48,6 @@ class PartialConv2d(Conv2d):
             tensor([prod(self.weight.shape[1:])], dtype=dtype, device=device),
         )
         self.__epsilon = epsilon
-        self.bias.data = self.bias.data.view(1, self.bias.shape[0], 1, 1)
 
     @property
     def epsilon(self) -> float:
@@ -62,7 +61,8 @@ class PartialConv2d(Conv2d):
         return current_mask, current_mask * ratio
 
     def forward(self, tensor: Tensor, mask: Tensor) -> tuple[Tensor, Tensor]:
-        mask, ratio = self.__calculate_current_mask(mask)
+        current_mask, ratio = self.__calculate_current_mask(mask)
 
         out = self._conv_forward(tensor * mask, self.weight, bias=None)
-        return (out * ratio) + self.bias, mask
+        out = (out * ratio) + self.bias.view(1, -1, 1, 1)
+        return out * current_mask, current_mask
