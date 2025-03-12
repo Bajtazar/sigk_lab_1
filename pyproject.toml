@@ -8,6 +8,8 @@ authors = [
 dependencies=[
     "pytest",
     "black",
+    "torch",
+    "torchvision",
     "ruff",
     "wget",
     "numpy",
