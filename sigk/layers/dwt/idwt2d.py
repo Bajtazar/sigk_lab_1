@@ -30,7 +30,7 @@ class IDwt2D(DwtBase):
         self.register_buffer("first_pass_kernel", first_pass_kernel)
         self.register_buffer("second_pass_kernel", second_pass_kernel)
 
-    def __perform_idwt_pass(
+    def _perform_idwt_pass(
         self, tensor: Tensor, kernel: Tensor, position: int, groups: int
     ) -> Tensor:
         stride = pad_value_with_sequence(value=2, filler=1, size=2, value_pos=position)
@@ -88,13 +88,13 @@ class IDwt2D(DwtBase):
         splitting_mode: str = "separate",
     ) -> Tensor:
         tensor = self._apply_preprocessing(tensor, splitting_mode)
-        second_pass = self.__perform_idwt_pass(
+        second_pass = self._perform_idwt_pass(
             tensor,
             kernel=self.second_pass_kernel,
             position=-1,
             groups=2 * self.channels,
         )
-        return self.__perform_idwt_pass(
+        return self._perform_idwt_pass(
             second_pass,
             kernel=self.first_pass_kernel,
             position=-2,

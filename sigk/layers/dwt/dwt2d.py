@@ -1,8 +1,10 @@
 from sigk.layers.dwt.dwt_base import DwtBase
 from sigk.layers.dwt.wavelet import Wavelet, PyWavelet
 
-
+from torch.nn.functional import pad, conv2d
 from torch import Tensor, device as tensor_device, dtype as tensor_dtype, stack
+
+from sigk.utils.tensor_utils import pad_value_with_sequence
 
 
 class Dwt2D(DwtBase):
@@ -62,6 +64,20 @@ class Dwt2D(DwtBase):
                 f'Invalid splitting mode, got ({splitting_mode}), expected (["none",'
                 ' "separate", "dimension"])'
             )
+
+    def _apply_padding(self, tensor: Tensor) -> Tensor:
+        return pad(tensor, [self._padding] * 4, mode=self.padding_mode)
+
+    def _perform_dwt_pass(
+        self, tensor: Tensor, kernel: Tensor, position: int, groups: int
+    ) -> Tensor:
+        stride = pad_value_with_sequence(value=2, filler=1, size=2, value_pos=position)
+        if self.padding_mode == "zeros":
+            padding = pad_value_with_sequence(
+                value=self._padding, filler=0, size=2, value_pos=position
+            )
+            return conv2d(tensor, kernel, stride=stride, groups=groups, padding=padding)
+        return conv2d(tensor, kernel, stride=stride, groups=groups)
 
     def forward(
         self, tensor: Tensor, splitting_mode: str = "separate"
