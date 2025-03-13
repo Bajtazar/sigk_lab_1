@@ -49,7 +49,7 @@ class PartialIDwt2D(IDwt2D):
         position: int,
         groups: int,
     ) -> tuple[Tensor, Tensor]:
-        current_mask = self._perform_dwt_pass(
+        current_mask = self._perform_idwt_pass(
             mask, kernel=pass_mask, position=position, groups=groups
         )
         ratio = pass_window_size / (current_mask + self.epsilon)
@@ -68,7 +68,7 @@ class PartialIDwt2D(IDwt2D):
         first_pass_mask, first_pass_ratio = self.__calculate_pass_mask(
             mask=second_pass_mask,
             pass_mask=self.first_pass_mask_coeffs,
-            pass_window_size=self.firstpass_window_size,
+            pass_window_size=self.first_pass_window_size,
             position=-2,
             groups=self.channels,
         )
@@ -97,7 +97,7 @@ class PartialIDwt2D(IDwt2D):
                 position=-2,
                 groups=self.channels,
             )
-            * first_pass_ratio,
+            * first_pass_ratio
         )
 
     def forward(
@@ -107,7 +107,7 @@ class PartialIDwt2D(IDwt2D):
         splitting_mode: str = "separate",
     ) -> tuple[Tensor, Tensor]:
         tensor = self._apply_preprocessing(tensor, splitting_mode)
-        mask = self._apply_preprocessing(tensor, mask)
+        mask = self._apply_preprocessing(mask, splitting_mode)
 
         sp_ratio, fp_mask, fp_ratio = self.__calculate_pass_masks(mask)
 
