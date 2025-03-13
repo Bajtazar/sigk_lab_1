@@ -98,8 +98,7 @@ class MultiheadAttention(Module):
             .chunk(3, dim=0)
         )
 
-    def forward(self, tensor: Tensor) -> Tensor:
-        tensor = self.__norm(tensor)
+    def _perform_attention(self, tensor: Tensor) -> Tensor:
         original_image_shape = tensor.shape
         tensor = tensor.flatten(start_dim=-2).movedim(1, -1)
 
@@ -112,3 +111,7 @@ class MultiheadAttention(Module):
         result = self.__out_projection(result)
 
         return result.movedim(-1, 1).reshape(original_image_shape)
+
+    def forward(self, tensor: Tensor) -> Tensor:
+        tensor = self.__norm(tensor)
+        return self._perform_attention(tensor)
