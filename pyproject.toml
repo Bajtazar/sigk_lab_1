@@ -16,7 +16,8 @@ dependencies=[
     "click",
     "lightning",
     "tensorboard",
-    "pywavelet"
+    "pywavelet",
+    "pytest"
 ]
 
 [tool.setuptools]
