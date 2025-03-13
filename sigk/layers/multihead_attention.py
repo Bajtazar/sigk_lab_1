@@ -1,8 +1,10 @@
 from torch.nn.modules.utils import _pair
 from torch.nn.functional import softmax
 from torch.nn.init import trunc_normal_
-from torch.nn import Module, Linear, LayerNorm, Parameter
+from torch.nn import Module, Linear, Parameter
 from torch import zeros, stack, meshgrid, arange, Tensor
+
+from sigk.layers.gdn import GDN
 
 from typing import Optional
 
@@ -18,7 +20,7 @@ class MultiheadAttention(Module):
         scale: Optional[float] = None,
     ) -> None:
         super().__init__()
-        self.__norm = LayerNorm(channels)
+        self.__norm = GDN(channels)
         self.__embedding_channels = heads * channels_per_head
         self.__qkv_projection = Linear(
             in_features=channels, out_features=self.__embedding_channels * 3, bias=bias
@@ -97,9 +99,9 @@ class MultiheadAttention(Module):
         )
 
     def forward(self, tensor: Tensor) -> Tensor:
+        tensor = self.__norm(tensor)
         original_image_shape = tensor.shape
         tensor = tensor.flatten(start_dim=-2).movedim(1, -1)
-        tensor = self.__norm(tensor)
 
         querry, key, value = self.__calculate_qkv(tensor)
 
