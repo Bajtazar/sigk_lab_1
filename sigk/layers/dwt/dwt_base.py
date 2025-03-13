@@ -4,7 +4,7 @@ from torch import Tensor, device as tensor_device, dtype as tensor_dtype, cat
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from sigk.layers.dwt import Wavelet, PyWavelet
+from sigk.layers.dwt.wavelet import Wavelet, PyWavelet
 from sigk.utils.tensor_utils import tensor_from_array
 
 
