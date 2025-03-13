@@ -8,7 +8,6 @@ from torch import (
 )
 from torch.fft import rfftn, irfftn, fftn, ifftn
 
-from functools import wraps
 from typing import Sequence, ParamSpec
 
 
@@ -29,7 +28,6 @@ class __SpectralMeta(type):
 
 
 def spectral(cls: object) -> object:
-    @wraps(cls)
     class Spectral(cls, metaclass=__SpectralMeta):
         def _convert_weights_to_spectral(self) -> None:
             original_weight = self.weight
