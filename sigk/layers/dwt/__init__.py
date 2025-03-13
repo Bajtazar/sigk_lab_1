@@ -5,6 +5,7 @@ from sigk.layers.dwt.wavelet_bank import (
 from sigk.layers.dwt.wavelet import Wavelet
 from sigk.layers.dwt.dwt2d import Dwt2D
 from sigk.layers.dwt.idwt2d import IDwt2D
+from sigk.layers.dwt.partial_dwt2d import PartialDwt2d
 
 
 __all__ = [
@@ -13,4 +14,5 @@ __all__ = [
     Wavelet,
     Dwt2D,
     IDwt2D,
+    PartialDwt2d
 ]
