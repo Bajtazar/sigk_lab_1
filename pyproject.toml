@@ -15,7 +15,8 @@ dependencies=[
     "numpy",
     "click",
     "lightning",
-    "tensorboard"
+    "tensorboard",
+    "pywavelet"
 ]
 
 [tool.setuptools]
