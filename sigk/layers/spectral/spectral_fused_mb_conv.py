@@ -1,7 +1,7 @@
 from sigk.layers.squeeze_and_excitaition_block import SqueezeAndExcitationBlock
 from sigk.layers.spectral.spectral_conv2d import SpectralConv2d
 
-from torch.nn import Module, Sequential, GELU
+from torch.nn import Module, Sequential
 from torch import Tensor, device as tensor_device, dtype as tensor_dtype
 
 from typing import Optional
@@ -26,7 +26,6 @@ class SpectralFusedMBConv(Module):
                 dtype=dtype,
                 device=device,
             ),
-            GELU(),
             SqueezeAndExcitationBlock(
                 4 * self.channels, bottleneck, dtype=dtype, device=device
             ),
