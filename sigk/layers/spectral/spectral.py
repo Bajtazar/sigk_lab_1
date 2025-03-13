@@ -27,7 +27,7 @@ class __SpectralMeta(type):
         return initialized
 
 
-def spectral(cls: object) -> object:
+def spectral(cls: type) -> type:
     class Spectral(cls, metaclass=__SpectralMeta):
         def _convert_weights_to_spectral(self) -> None:
             original_weight = self.weight
