@@ -68,9 +68,7 @@ class PartialDwt2d(Dwt2D):
         return current_mask, current_mask * ratio
 
     @no_grad
-    def __calculate_pass_masks(
-        self, mask: Tensor
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def __calculate_pass_masks(self, mask: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         first_pass_mask, first_pass_ratio = self.__calculate_pass_mask(
             mask=mask,
             pass_mask=self.first_pass_mask_coeffs,
@@ -85,4 +83,54 @@ class PartialDwt2d(Dwt2D):
             position=-1,
             groups=2 * self.channels,
         )
-        return first_pass_mask, second_pass_mask, first_pass_ratio, second_pass_ratio
+        return first_pass_ratio, second_pass_mask, second_pass_ratio
+
+    def __perform_partial_dwt2d(
+        self,
+        tensor: Tensor,
+        mask: Tensor,
+        first_pass_ratio: Tensor,
+        second_pass_ratio: Tensor,
+    ) -> Tensor:
+        first_pass = (
+            self._perform_dwt_pass(
+                tensor * mask,
+                kernel=self.first_pass_kernel,
+                position=-2,
+                groups=self.channels,
+            )
+            * first_pass_ratio
+        )
+        return (
+            self._perform_dwt_pass(
+                first_pass,
+                kernel=self.second_pass_kernel,
+                position=-1,
+                groups=2 * self.channels,
+            )
+            * second_pass_ratio
+        )
+
+    def forward(
+        self, tensor: Tensor, mask: Tensor, splitting_mode: str = "separate"
+    ) -> (
+        tuple[Tensor, Tensor]
+        | tuple[
+            tuple[Tensor, Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor, Tensor]
+        ]
+    ):
+        self._check_input_tensor(tensor, dimension=4)
+        if self.padding_mode != "zeros":
+            tensor = self._apply_padding(tensor)
+            mask = self._apply_padding(mask, value=1.0)
+
+        fp_ratio, sp_mask, sp_ratio = self.__calculate_pass_masks(mask)
+
+        result = self.__perform_partial_dwt2d(
+            tensor, mask=mask, first_pass_ratio=fp_ratio, second_pass_ratio=sp_ratio
+        )
+
+        return (
+            self._apply_postprocessing(result, splitting_mode),
+            self._apply_postprocessing(sp_mask, splitting_mode),
+        )

@@ -65,8 +65,8 @@ class Dwt2D(DwtBase):
                 ' "separate", "dimension"])'
             )
 
-    def _apply_padding(self, tensor: Tensor) -> Tensor:
-        return pad(tensor, [self._padding] * 4, mode=self.padding_mode)
+    def _apply_padding(self, tensor: Tensor, value: int = 0) -> Tensor:
+        return pad(tensor, [self._padding] * 4, mode=self.padding_mode, value=value)
 
     def _perform_dwt_pass(
         self, tensor: Tensor, kernel: Tensor, position: int, groups: int
