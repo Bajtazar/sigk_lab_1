@@ -4,7 +4,6 @@ from torch import (
     complex32,
     complex64,
     complex128,
-    dtype as tensor_dtype,
     get_default_dtype,
 )
 from torch.fft import rfftn, irfftn, fftn, ifftn
@@ -20,29 +19,25 @@ class __SpectralMeta(type):
         if not issubclass(cls, Module):
             raise ValueError("Given class is not a derivative of torch.nn.Module")
         initialized = type.__call__(cls, *args, **kwargs)
-        initialized.convert_weights_to_spectral()
+        initialized._convert_weights_to_spectral()
+        setattr(
+            cls, "weight", property(fget=cls._weight_getter, fset=cls._weight_setter)
+        )
+        return initialized
 
 
 def spectral(cls: object) -> object:
     class Spectral(cls, metaclass=__SpectralMeta):
-        def convert_weights_to_spectral(self) -> None:
+        def _convert_weights_to_spectral(self) -> None:
             original_weight = self.weight
             if not hasattr(self, "weight"):
-                raise ValueError("weight tensor not found - convertion to spectral is impossible")
+                raise ValueError(
+                    "weight tensor not found - convertion to spectral is impossible"
+                )
             del self._parameters["weight"]
             if not hasattr(self, "dtype"):
                 self.dtype = original_weight.dtype
-            self.register_parameter("spectral_weight",
-                                    self._to_spectral(original_weight))
-            weight_property = property(self.__weight_getter)
-            weight_property.setter(self.__weight_setter)
-            setattr(self, "weight", weight_property)
-
-        def __weight_getter(self) -> Tensor:
-            return self._from_spectral(self.spectral_weight)
-
-        def __weight_setter(self, value: Tensor) -> Tensor:
-            self.spectral_weight = self._to_spectral(value)
+            self.spectral_weight = Parameter(self._to_spectral(original_weight))
 
         def _to_spectral(self, weights: Tensor) -> Tensor:
             if self.is_spectral_weight_complex:
@@ -60,6 +55,12 @@ def spectral(cls: object) -> object:
             if obj_type is None:
                 obj_type = get_default_dtype()
             return obj_type in COMPLEX_TYPES
+
+        def _weight_getter(self) -> Tensor:
+            return self._from_spectral(self.spectral_weight)
+
+        def _weight_setter(self, value: Tensor) -> Tensor:
+            self.spectral_weight = self._to_spectral(value)
 
         @property
         def __signal_size(self) -> Sequence[int] | int:
