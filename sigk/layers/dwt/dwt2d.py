@@ -48,7 +48,7 @@ class Dwt2D(DwtBase):
         hh_band = tensor[..., ::4, :, :]
         return ll_band, lh_band, hl_band, hh_band
 
-    def __apply_postprocessing(
+    def _apply_postprocessing(
         self, tensor: Tensor, splitting_mode: str
     ) -> Tensor | tuple[Tensor, Tensor, Tensor, Tensor]:
         if splitting_mode == "none":
@@ -79,7 +79,7 @@ class Dwt2D(DwtBase):
             position=-1,
             groups=2 * self.channels,
         )
-        return self.__apply_postprocessing(result, splitting_mode)
+        return self._apply_postprocessing(result, splitting_mode)
 
     @property
     def padding_mode(self) -> str:

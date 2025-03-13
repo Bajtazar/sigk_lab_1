@@ -61,7 +61,7 @@ class IDwt2D(DwtBase):
         reconstruction[..., ::4, :, :] = hh
         return reconstruction
 
-    def __apply_preprocessing(
+    def _apply_preprocessing(
         self,
         tensor: tuple[Tensor, Tensor, Tensor, Tensor] | Tensor,
         splitting_mode: str,
@@ -87,7 +87,7 @@ class IDwt2D(DwtBase):
         tensor: tuple[Tensor, Tensor, Tensor, Tensor] | Tensor,
         splitting_mode: str = "separate",
     ) -> Tensor:
-        tensor = self.__apply_preprocessing(tensor, splitting_mode)
+        tensor = self._apply_preprocessing(tensor, splitting_mode)
         second_pass = self.__perform_idwt_pass(
             tensor,
             kernel=self.second_pass_kernel,
