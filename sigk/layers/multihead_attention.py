@@ -1,7 +1,8 @@
 from torch.nn.modules.utils import _pair
+from torch.nn.functional import softmax
 from torch.nn.init import trunc_normal_
 from torch.nn import Module, Linear, LayerNorm, Parameter
-from torch import zeros, stack, meshgrid, arange
+from torch import zeros, stack, meshgrid, arange, Tensor
 
 
 class MultiheadAttention(Module):
@@ -9,20 +10,22 @@ class MultiheadAttention(Module):
         self,
         channels: int,
         heads: int,
-        heads_per_channel: int,
+        channels_per_head: int,
         latent_size: int | tuple[int, int],
         bias: bool = False,
     ) -> None:
         super().__init__()
         self.__norm = LayerNorm(channels)
-        self.__embedding_channels = heads * heads_per_channel
+        self.__embedding_channels = heads * channels_per_head
         self.__qkv_projection = Linear(
             in_features=channels, out_features=self.__embedding_channels * 3, bias=bias
         )
         self.__out_projection = Linear(
             in_features=self.__embedding_channels, out_features=channels
         )
+        self.__heads = heads
         self.__latent_size = _pair(latent_size)
+        self.__scale = channels_per_head**-0.5
         self.__initialize_parameters()
 
     def __initialize_parameters(self) -> None:
@@ -59,3 +62,47 @@ class MultiheadAttention(Module):
     @property
     def latent_size(self) -> tuple[int, int]:
         return self.__latent_size
+
+    @property
+    def heads(self) -> int:
+        return self.__heads
+
+    def __add_relative_position_encoding(
+        self,
+        attention: Tensor,
+    ) -> Tensor:
+        latent_area = self.latent_size[0] * self.latent_size[1]
+        relative_position_bias = (
+            self.__relative_position_bias_table[
+                self._relative_position_indices.view(-1)
+            ]
+            .view(latent_area, latent_area, -1)
+            .permute(2, 0, 1)
+            .contiguous()
+            .unsqueeze(0)
+        )
+        return attention + relative_position_bias
+
+    def __calculate_qkv(self, tensor: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        b, n, c = tensor.shape
+        return (
+            self.__qkv_projection(tensor)
+            .reshape(b, n, 3, self.heads, c // (3 * self.heads))
+            .permute(2, 0, 3, 1, 4)
+            .chunk(3, dim=-1)
+        )
+
+    def forward(self, tensor: Tensor) -> Tensor:
+        original_image_shape = tensor.shape
+        tensor = tensor.flatten(start_dim=-2).movedim(1, -1)
+        tensor = self.__norm(tensor)
+
+        querry, key, value = self.__calculate_qkv(tensor)
+
+        attention = querry @ key.transpose(-1, 2) * self.__scale
+        attention = softmax(self.__add_relative_position_encoding(attention))
+
+        result = (attention @ value).reshape(tensor.shape)
+        result = self.__out_projection(result)
+
+        return result.movedim(-1, 1).reshape(original_image_shape)
