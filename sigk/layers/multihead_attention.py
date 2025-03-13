@@ -26,13 +26,14 @@ class MultiheadAttention(Module):
         self.__heads = heads
         self.__latent_size = _pair(latent_size)
         self.__scale = channels_per_head**-0.5
+        self.__channels_per_head = channels_per_head
         self.__initialize_parameters()
 
     def __initialize_parameters(self) -> None:
         self.__relative_position_bias_table = Parameter(
             zeros(
                 (2 * self.latent_size[0] - 1) * (2 * self.latent_size[1] - 1),
-                self.number_of_heads,
+                self.heads,
             )
         )
         trunc_normal_(self.__relative_position_bias_table, std=0.02)
@@ -84,12 +85,12 @@ class MultiheadAttention(Module):
         return attention + relative_position_bias
 
     def __calculate_qkv(self, tensor: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        b, n, c = tensor.shape
+        b, n, _ = tensor.shape
         return (
             self.__qkv_projection(tensor)
-            .reshape(b, n, 3, self.heads, c // (3 * self.heads))
+            .reshape(b, n, 3, self.heads, self.__channels_per_head)
             .permute(2, 0, 3, 1, 4)
-            .chunk(3, dim=-1)
+            .chunk(3, dim=0)
         )
 
     def forward(self, tensor: Tensor) -> Tensor:
@@ -99,8 +100,8 @@ class MultiheadAttention(Module):
 
         querry, key, value = self.__calculate_qkv(tensor)
 
-        attention = querry @ key.transpose(-1, 2) * self.__scale
-        attention = softmax(self.__add_relative_position_encoding(attention))
+        attention = querry @ key.transpose(-2, -1) * self.__scale
+        attention = softmax(self.__add_relative_position_encoding(attention), dim=-1)
 
         result = (attention @ value).reshape(tensor.shape)
         result = self.__out_projection(result)
