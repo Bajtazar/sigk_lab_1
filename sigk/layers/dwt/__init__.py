@@ -14,5 +14,5 @@ __all__ = [
     Wavelet,
     Dwt2D,
     IDwt2D,
-    PartialDwt2d
+    PartialDwt2d,
 ]

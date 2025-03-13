@@ -74,6 +74,49 @@ class DwtBase(IDwt2D):
         )
         return second_pass_ratio, first_pass_mask, first_pass_ratio
 
+    def __peform_partial_idwt2d(
+        self,
+        tensor: Tensor,
+        mask: Tensor,
+        first_pass_ratio: Tensor,
+        second_pass_ratio: Tensor,
+    ) -> Tensor:
+        second_pass = (
+            self._perform_idwt_pass(
+                tensor * mask,
+                kernel=self.second_pass_kernel,
+                position=-1,
+                groups=2 * self.channels,
+            )
+            * second_pass_ratio
+        )
+        return (
+            self._perform_idwt_pass(
+                second_pass,
+                kernel=self.first_pass_kernel,
+                position=-2,
+                groups=self.channels,
+            )
+            * first_pass_ratio,
+        )
+
+    def forward(
+        self,
+        tensor: tuple[Tensor, Tensor, Tensor, Tensor] | Tensor,
+        mask: tuple[Tensor, Tensor, Tensor, Tensor] | Tensor,
+        splitting_mode: str = "separate",
+    ) -> tuple[Tensor, Tensor]:
+        tensor = self._apply_preprocessing(tensor, splitting_mode)
+        mask = self._apply_preprocessing(tensor, mask)
+
+        sp_ratio, fp_mask, fp_ratio = self.__calculate_pass_masks(mask)
+
+        result = self.__peform_partial_idwt2d(
+            tensor, mask=mask, first_pass_ratio=fp_ratio, second_pass_ratio=sp_ratio
+        )
+
+        return result, fp_mask
+
     @property
     def epsilon(self) -> float:
         return self.__epsilon
