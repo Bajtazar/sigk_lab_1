@@ -4,6 +4,8 @@ from torch.nn.init import trunc_normal_
 from torch.nn import Module, Linear, LayerNorm, Parameter
 from torch import zeros, stack, meshgrid, arange, Tensor
 
+from typing import Optional
+
 
 class MultiheadAttention(Module):
     def __init__(
@@ -13,6 +15,7 @@ class MultiheadAttention(Module):
         channels_per_head: int,
         latent_size: int | tuple[int, int],
         bias: bool = False,
+        scale: Optional[float] = None,
     ) -> None:
         super().__init__()
         self.__norm = LayerNorm(channels)
@@ -25,7 +28,7 @@ class MultiheadAttention(Module):
         )
         self.__heads = heads
         self.__latent_size = _pair(latent_size)
-        self.__scale = channels_per_head**-0.5
+        self.__scale = scale or channels_per_head**-0.5
         self.__channels_per_head = channels_per_head
         self.__initialize_parameters()
 
