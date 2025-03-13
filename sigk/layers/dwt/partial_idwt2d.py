@@ -15,7 +15,7 @@ from numpy import prod
 from typing import Optional
 
 
-class DwtBase(IDwt2D):
+class PartialIDwt2D(IDwt2D):
     def __init__(
         self,
         channels: int,

@@ -15,7 +15,7 @@ from numpy import prod
 from typing import Optional
 
 
-class PartialDwt2d(Dwt2D):
+class PartialDwt2D(Dwt2D):
     def __init__(
         self,
         channels: int,
