@@ -8,14 +8,16 @@ from torch import (
 )
 from torch.fft import rfftn, irfftn, fftn, ifftn
 
-from typing import Sequence
+from functools import wraps
+from typing import Sequence, ParamSpec
 
 
 COMPLEX_TYPES: type = [complex32, complex64, complex128]
+Args = ParamSpec("Args")
 
 
 class __SpectralMeta(type):
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: ParamSpec.args, **kwargs: ParamSpec.kwargs) -> None:
         if not issubclass(cls, Module):
             raise ValueError("Given class is not a derivative of torch.nn.Module")
         initialized = type.__call__(cls, *args, **kwargs)
@@ -27,6 +29,7 @@ class __SpectralMeta(type):
 
 
 def spectral(cls: object) -> object:
+    @wraps(cls)
     class Spectral(cls, metaclass=__SpectralMeta):
         def _convert_weights_to_spectral(self) -> None:
             original_weight = self.weight
@@ -41,13 +44,13 @@ def spectral(cls: object) -> object:
 
         def _to_spectral(self, weights: Tensor) -> Tensor:
             if self.is_spectral_weight_complex:
-                return fftn(input=weights, s=self.__signal_size, norm="ortho")
-            return rfftn(input=weights, s=self.__signal_size, norm="ortho")
+                return fftn(input=weights, s=self._signal_size, norm="ortho")
+            return rfftn(input=weights, s=self._signal_size, norm="ortho")
 
         def _from_spectral(self, weights: Tensor) -> Tensor:
             if self.is_spectral_weight_complex:
-                return ifftn(input=weights, s=self.__signal_size, norm="ortho")
-            return irfftn(input=weights, s=self.__signal_size, norm="ortho")
+                return ifftn(input=weights, s=self._signal_size, norm="ortho")
+            return irfftn(input=weights, s=self._signal_size, norm="ortho")
 
         @property
         def is_spectral_weight_complex(self) -> bool:
@@ -63,7 +66,7 @@ def spectral(cls: object) -> object:
             self.spectral_weight = self._to_spectral(value)
 
         @property
-        def __signal_size(self) -> Sequence[int] | int:
+        def _signal_size(self) -> Sequence[int] | int:
             if hasattr(self, "kernel_size"):  # Convolution
                 return self.kernel_size
             elif hasattr(self, "in_features"):  # Linear layer
