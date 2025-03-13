@@ -16,9 +16,6 @@ dependencies=[
     "click",
     "lightning",
     "tensorboard",
-    "pywavelet",
+    "pywavelets",
     "pytest"
 ]
-
-[tool.setuptools]
-packages = ["sigk"]
