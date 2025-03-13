@@ -2,7 +2,7 @@ from torch.nn import Module
 from torch import Tensor, device as tensor_device, dtype as tensor_dtype, cat
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 from sigk.layers.dwt import Wavelet, PyWavelet
 from sigk.utils.tensor_utils import tensor_from_array
@@ -13,8 +13,8 @@ class DwtBase(Module, ABC):
         self,
         channels: int,
         wavelet: Wavelet | PyWavelet,
-        dtype: tensor_dtype | None = None,
-        device: tensor_device | None = None,
+        dtype: Optional[tensor_dtype] = None,
+        device: Optional[tensor_device] = None,
     ) -> None:
         super().__init__()
         self.__wavelet = (
