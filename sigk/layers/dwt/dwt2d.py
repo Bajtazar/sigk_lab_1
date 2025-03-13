@@ -65,8 +65,8 @@ class Dwt2D(DwtBase):
                 ' "separate", "dimension"])'
             )
 
-    def _apply_padding(self, tensor: Tensor, value: int = 0) -> Tensor:
-        return pad(tensor, [self._padding] * 4, mode=self.padding_mode, value=value)
+    def _apply_padding(self, tensor: Tensor, mode: str, value: int = 0) -> Tensor:
+        return pad(tensor, [self._padding] * 4, mode=mode, value=value)
 
     def _perform_dwt_pass(
         self, tensor: Tensor, kernel: Tensor, position: int, groups: int
@@ -84,7 +84,7 @@ class Dwt2D(DwtBase):
     ) -> Tensor | tuple[Tensor, Tensor, Tensor, Tensor]:
         self._check_input_tensor(tensor, dimension=4)
         if self.padding_mode != "zeros":
-            tensor = self._apply_padding(tensor)
+            tensor = self._apply_padding(tensor, mode=self.padding_mode)
         # Transform rows, then columns
         first_pass = self._perform_dwt_pass(
             tensor, kernel=self.first_pass_kernel, position=-2, groups=self.channels

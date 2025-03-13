@@ -121,8 +121,8 @@ class PartialDwt2d(Dwt2D):
     ):
         self._check_input_tensor(tensor, dimension=4)
         if self.padding_mode != "zeros":
-            tensor = self._apply_padding(tensor)
-            mask = self._apply_padding(mask, value=1.0)
+            tensor = self._apply_padding(tensor, mode=self.padding_mode)
+            mask = self._apply_padding(mask, mode="constant", value=1.0)
 
         fp_ratio, sp_mask, sp_ratio = self.__calculate_pass_masks(mask)
 
