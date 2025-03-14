@@ -30,8 +30,10 @@ class Inpainting(LightningModule):
         )
         self.__loss = InpaintingLoss() if not loss_args else InpaintingLoss(**loss_args)
 
-    def training_step(self, batch: tuple[Tensor, Tensor], batch_idx: int) -> Tensor:
-        x, mask = batch
+    def training_step(
+        self, batch: tuple[tuple[Tensor, Tensor], str], batch_idx: int
+    ) -> Tensor:
+        (x, mask), _ = batch
         x_hat = self.__model(x * mask, mask)
         loss, stats = self.__loss(x, x_hat, mask)
         self.log("train loss", loss)
@@ -71,9 +73,9 @@ class Inpainting(LightningModule):
         dataloader_idx: int,
     ) -> None:
         if dataloader_idx == self.__VALIDATION_LOADER:
-            self.__validation_step(*batch)
+            self.__validation_step(*batch[0])
         elif dataloader_idx == self.__TEST_LOADER:
-            x, path, mask = batch
+            (x, mask), path = batch
             if (
                 self.current_epoch == 0
                 and self.__test_on_first_epoch
