@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from torch import (
     Tensor,
@@ -16,15 +16,15 @@ from torch.nn.functional import conv2d
 from sigk.layers.lower_bound import LowerBound
 
 
-class GDNBase(Module):
+class __GDNBase(Module):
     def __init__(
         self,
         channels: int,
         beta_min: float = 1e-6,
         gamma_init: float = 0.1,
         reparam_offset: float = 2**-18,
-        device: Optional[tensor_device] = None,
-        dtype: Optional[tensor_dtype] = None,
+        device: tensor_device | None = None,
+        dtype: tensor_dtype | None = None,
     ) -> None:
         super().__init__()
         factory_kwargs = {"device": device, "dtype": dtype}
@@ -47,7 +47,7 @@ class GDNBase(Module):
             sqrt(eye(channels, **kwargs) * gamma_init + self.pedestal)
         )
 
-    def _assert_input_size(self, input_tensor: Tensor) -> Tensor:
+    def __assert_input_size(self, input_tensor: Tensor) -> Tensor:
         if input_tensor.dim() != 4:
             raise ValueError(
                 "Only (B,C,H,W) tensors are accepted, got tensor with"
@@ -68,16 +68,16 @@ class GDNBase(Module):
         return gamma_view, beta
 
     def _calculate_norm(self, input_tensor: Tensor) -> Tensor:
-        self._assert_input_size(input_tensor)
-        gamma, beta = self._projected_weights
-        return conv2d(input_tensor**2, gamma, beta)
+        self.__assert_input_size(input_tensor)
+        gamma_view, beta = self._projected_weights
+        return conv2d(input_tensor**2, gamma_view, beta)
 
 
-class GDN(GDNBase):
+class GDN(__GDNBase):
     def forward(self, input_tensor: Tensor) -> Tensor:
         return input_tensor * rsqrt(self._calculate_norm(input_tensor))
 
 
-class IGDN(GDNBase):
+class IGDN(__GDNBase):
     def forward(self, input_tensor: Tensor) -> Tensor:
         return input_tensor * sqrt(self._calculate_norm(input_tensor))
