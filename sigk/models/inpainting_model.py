@@ -65,13 +65,19 @@ class SynthesisConvolutionBlock(Module):
 class AnalysisFusedBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
-        self.__conv = PartialSpectralFusedMBConv(
-            in_channels, in_channels, kernel_size=3, padding=1
+        self.__sequence = UnpackingSequential(
+            PartialSpectralConv2d(
+                in_channels, out_channels, kernel_size=3, padding=1, groups=in_channels
+            ),
+            PartialSpectralFusedMBConv(
+                out_channels, out_channels, kernel_size=3, padding=1
+            ),
+            PartialGDN(channels=out_channels),
+            PartialSpectralFusedMBConv(
+                out_channels, out_channels, kernel_size=3, padding=1
+            ),
+            PartialGDN(channels=out_channels),
         )
-        self.__cast = PartialSpectralConv2d(
-            in_channels, out_channels, kernel_size=3, padding=1, groups=in_channels
-        )
-        self.__norm = PartialGDN(channels=out_channels)
         self.__dwt = PartialDwt2D(
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
@@ -81,7 +87,7 @@ class AnalysisFusedBlock(Module):
         tuple[tuple[Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor]],
     ]:
         (ll, *bands), (ll_mask, *bands_masks) = self.__dwt(
-            *self.__norm(*self.__cast(*self.__conv(tensor, mask)))
+            *self.__sequence(tensor, mask)
         )
         return (ll, ll_mask), (bands, bands_masks)
 
@@ -89,16 +95,22 @@ class AnalysisFusedBlock(Module):
 class SynthesisFusedBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
+        self.__sequence = UnpackingSequential(
+            PartialSpectralFusedMBConv(
+                in_channels, in_channels, kernel_size=3, padding=1
+            ),
+            PartialGDN(channels=in_channels),
+            PartialSpectralFusedMBConv(
+                in_channels, in_channels, kernel_size=3, padding=1
+            ),
+            PartialSpectralConv2d(
+                in_channels, out_channels, kernel_size=3, padding=1, groups=out_channels
+            ),
+            PartialGDN(channels=out_channels),
+        )
         self.__idwt = PartialDwt2D(
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
-        self.__cast = PartialSpectralConv2d(
-            in_channels, out_channels, kernel_size=3, padding=1, groups=in_channels
-        )
-        self.__conv = PartialSpectralFusedMBConv(
-            out_channels, out_channels, kernel_size=3, padding=1
-        )
-        self.__norm = PartialGDN(channels=out_channels)
 
     def forward(
         self,
@@ -108,7 +120,7 @@ class SynthesisFusedBlock(Module):
         bands_masks: tuple[Tensor, Tensor, Tensor],
     ) -> tuple[Tensor, Tensor]:
         pre_recon, pre_recon_mask = self.__idwt((ll, *bands), (ll_mask, *bands_masks))
-        return self.__norm(*self.__conv(*self.__cast(pre_recon, pre_recon_mask)))
+        return self.__sequence(pre_recon, pre_recon_mask)
 
 
 class InpaintingMode(Module):
