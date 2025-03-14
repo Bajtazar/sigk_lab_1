@@ -124,9 +124,9 @@ class SynthesisFusedBlock(Module):
 
 
 class InpaintingMode(Module):
-    def __init__(self, embedding_features: int) -> None:
+    def __init__(self, embedding_features: int, attention_heads: int) -> None:
         super().__init__()
-        assert embedding_features % 3 == 0, "Embedding features have to be a power of 3"
+        assert 8 * embedding_features % 3 == attention_heads
         self.__analysis_blocks = ParameterList(
             AnalysisConvolutionBlock(3, embedding_features),
             AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
@@ -136,8 +136,8 @@ class InpaintingMode(Module):
         self.__low_level_recon = UnpackingSequential(
             PartialMultiheadAttention(
                 channels=8 * embedding_features,
-                heads=24,
-                channels_per_head=embedding_features // 3,
+                heads=attention_heads,
+                channels_per_head=8 * embedding_features // attention_heads,
             ),
             PartialIGDN(8 * embedding_features),
         )
