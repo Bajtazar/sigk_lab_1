@@ -81,19 +81,24 @@ class InpaintingLoss:
             loss += self.__l1_loss(comp_gram, x_gram)
         return self.style_lambda * loss
 
-    def __call__(self, x: Tensor, x_hat: Tensor, mask: Tensor) -> Tensor:
+    def __call__(
+        self, x: Tensor, x_hat: Tensor, mask: Tensor
+    ) -> tuple[Tensor, dict[str, Tensor]]:
         hole_mask = 1 - mask
         composition = self.__get_composition(x, x_hat, mask, hole_mask)
         embedded_x = self.__embedding(x)
         embedded_x_hat = self.__embedding(x_hat)
         embedded_comp = self.__embedding(composition)
-        valid_loss = self.__valid_loss(x, x_hat, mask)
-        hole_loss = self.__hole_loss(x, x_hat, hole_mask)
-        total_variation_loss = self.__total_variation_loss(composition)
-        perceptual_loss = self.__perceptual_loss(
-            embedded_x, embedded_x_hat, embedded_comp
-        )
-        style_loss = self.__style_loss(embedded_x, embedded_x_hat, embedded_comp)
+        losses = {
+            "valid_loss": self.__valid_loss(x, x_hat, mask),
+            "hole_loss": self.__hole_loss(x, x_hat, hole_mask),
+            "total_variation_loss": self.__total_variation_loss(composition),
+            "perceptual_loss": self.__perceptual_loss(
+                embedded_x, embedded_x_hat, embedded_comp
+            ),
+            "style_loss": self.__style_loss(embedded_x, embedded_x_hat, embedded_comp),
+        }
+        return sum(losses.values()), losses
 
     @staticmethod
     def __calculate_gram_matrix(matrix: Tensor) -> Tensor:
