@@ -106,11 +106,11 @@ class SynthesisFusedBlock(Module):
                 in_channels,
             ),
             PartialSpectralConv2d(
-                in_channels, out_channels, kernel_size=3, padding=1, groups=out_channels
+                in_channels, out_channels, kernel_size=2, padding=1, groups=out_channels
             ),
             PartialIGDN(channels=out_channels),
         )
-        self.__idwt = PartialDwt2D(
+        self.__idwt = PartialIDwt2D(
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
 
@@ -133,28 +133,34 @@ class InpaintingMode(Module):
         latent_size: int | tuple[int, int],
     ) -> None:
         super().__init__()
-        assert 8 * embedding_features % attention_heads == 0
+        assert 16 * embedding_features % attention_heads == 0
         self.__analysis_blocks = ParameterList(
             [
                 AnalysisConvolutionBlock(3, embedding_features),
                 AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
-                AnalysisFusedBlock(2 * embedding_features, 4 * embedding_features),
+                AnalysisConvolutionBlock(
+                    2 * embedding_features, 4 * embedding_features
+                ),
                 AnalysisFusedBlock(4 * embedding_features, 8 * embedding_features),
+                AnalysisFusedBlock(8 * embedding_features, 16 * embedding_features),
             ]
         )
         self.__low_level_recon = UnpackingSequential(
             PartialMultiheadAttention(
-                channels=8 * embedding_features,
+                channels=16 * embedding_features,
                 heads=attention_heads,
-                channels_per_head=8 * embedding_features // attention_heads,
+                channels_per_head=16 * embedding_features // attention_heads,
                 latent_size=latent_size,
             ),
-            PartialIGDN(8 * embedding_features),
+            PartialIGDN(16 * embedding_features),
         )
         self.__synthesis_blocks = ParameterList(
             [
+                SynthesisFusedBlock(16 * embedding_features, 8 * embedding_features),
                 SynthesisFusedBlock(8 * embedding_features, 4 * embedding_features),
-                SynthesisFusedBlock(4 * embedding_features, 2 * embedding_features),
+                SynthesisConvolutionBlock(
+                    4 * embedding_features, 2 * embedding_features
+                ),
                 SynthesisConvolutionBlock(2 * embedding_features, embedding_features),
                 SynthesisConvolutionBlock(embedding_features, 3),
             ]
