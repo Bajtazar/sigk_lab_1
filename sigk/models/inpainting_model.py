@@ -125,7 +125,7 @@ class SynthesisFusedBlock(Module):
         return self.__sequence(pre_recon, pre_recon_mask)
 
 
-class InpaintingMode(Module):
+class InpaintingModel(Module):
     def __init__(
         self,
         embedding_features: int,
