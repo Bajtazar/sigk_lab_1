@@ -9,6 +9,7 @@ from sigk.layers.dwt import (
     PartialIDwt2D,
     COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET,
 )
+from sigk.utils.unpacking_sequence import UnpackingSequential
 
 from torch import Tensor
 from torch.nn import Module, ParameterList
@@ -17,10 +18,12 @@ from torch.nn import Module, ParameterList
 class AnalysisConvolutionBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
-        self.__conv = PartialSpectralConv2d(
-            in_channels, out_channels, kernel_size=3, padding=1
+        self.__sequence = UnpackingSequential(
+            PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            PartialGDN(channels=out_channels),
+            PartialSpectralConv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            PartialGDN(channels=out_channels),
         )
-        self.__norm = PartialGDN(channels=out_channels)
         self.__dwt = PartialDwt2D(
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
@@ -30,7 +33,7 @@ class AnalysisConvolutionBlock(Module):
         tuple[tuple[Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor]],
     ]:
         (ll, *bands), (ll_mask, *bands_masks) = self.__dwt(
-            *self.__norm(*self.__conv(tensor, mask))
+            *self.__sequence(tensor, mask)
         )
         return (ll, ll_mask), (bands, bands_masks)
 
@@ -41,10 +44,12 @@ class SynthesisConvolutionBlock(Module):
         self.__idwt = PartialIDwt2D(
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
-        self.__conv = PartialSpectralConv2d(
-            in_channels, out_channels, kernel_size=3, padding=1
+        self.__sequence = UnpackingSequential(
+            PartialSpectralConv2d(in_channels, in_channels, kernel_size=3, padding=1),
+            PartialGDN(channels=in_channels),
+            PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            PartialGDN(channels=out_channels),
         )
-        self.__norm = PartialGDN(channels=out_channels)
 
     def forward(
         self,
@@ -54,7 +59,7 @@ class SynthesisConvolutionBlock(Module):
         bands_masks: tuple[Tensor, Tensor, Tensor],
     ) -> tuple[Tensor, Tensor]:
         pre_recon, pre_recon_mask = self.__idwt((ll, *bands), (ll_mask, *bands_masks))
-        return self.__norm(*self.__conv(pre_recon, pre_recon_mask))
+        return self.__sequence(pre_recon, pre_recon_mask)
 
 
 class AnalysisFusedBlock(Module):
