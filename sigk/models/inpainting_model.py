@@ -4,7 +4,11 @@ from sigk.layers.spectral.partial_spectral_fused_mb_conv import (
 )
 from sigk.layers.partial_gdn import PartialGDN
 from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
-from sigk.layers.dwt import PartialDwt2D, COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
+from sigk.layers.dwt import (
+    PartialDwt2D,
+    PartialIDwt2D,
+    COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET,
+)
 
 from torch import Tensor
 from torch.nn import Module, ParameterList
@@ -29,6 +33,28 @@ class AnalysisConvolutionBlock(Module):
             *self.__norm(*self.__conv(tensor, mask))
         )
         return (ll, ll_mask), (bands, bands_masks)
+
+
+class SynthesisConvolutionBlock(Module):
+    def __init__(self, in_channels: int, out_channels: int) -> None:
+        super().__init__()
+        self.__idwt = PartialIDwt2D(
+            channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
+        )
+        self.__conv = PartialSpectralConv2d(
+            in_channels, out_channels, kernel_size=3, padding=1
+        )
+        self.__norm = PartialGDN(channels=out_channels)
+
+    def forward(
+        self,
+        ll: Tensor,
+        ll_mask: Tensor,
+        bands: tuple[Tensor, Tensor, Tensor],
+        bands_masks: tuple[Tensor, Tensor, Tensor],
+    ) -> tuple[Tensor, Tensor]:
+        pre_recon, pre_recon_mask = self.__idwt((ll, *bands), (ll_mask, *bands_masks))
+        return self.__norm(*self.__conv(pre_recon, pre_recon_mask))
 
 
 class AnalysisFusedBlocks(Module):
@@ -60,15 +86,19 @@ class InpaintingMode(Module):
         super().__init__()
         assert embedding_features % 3 == 0, "Embedding features have to be a power of 3"
         self.__analysis_conv_blocks = ParameterList(
-            self.AnalysisConvolutionBlock(3, embedding_features),
-            self.AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
+            AnalysisConvolutionBlock(3, embedding_features),
+            AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
         )
         self.__analysis_fused_blocks = ParameterList(
-            self.AnalysisFusedBlocks(2 * embedding_features, 4 * embedding_features),
-            self.AnalysisFusedBlocks(4 * embedding_features, 8 * embedding_features),
+            AnalysisFusedBlocks(2 * embedding_features, 4 * embedding_features),
+            AnalysisFusedBlocks(4 * embedding_features, 8 * embedding_features),
         )
         self.__low_level_recon = PartialMultiheadAttention(
             channels=8 * embedding_features,
             heads=24,
             channels_per_head=embedding_features // 3,
+        )
+        self.__synthesis_conv_blocks = ParameterList(
+            SynthesisConvolutionBlock(2 * embedding_features, embedding_features),
+            SynthesisConvolutionBlock(embedding_features, 3),
         )
