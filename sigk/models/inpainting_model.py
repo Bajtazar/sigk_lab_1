@@ -70,11 +70,11 @@ class AnalysisFusedBlock(Module):
                 in_channels, out_channels, kernel_size=3, padding=1, groups=in_channels
             ),
             PartialSpectralFusedMBConv(
-                out_channels, out_channels, kernel_size=3, padding=1
+                out_channels,
             ),
             PartialGDN(channels=out_channels),
             PartialSpectralFusedMBConv(
-                out_channels, out_channels, kernel_size=3, padding=1
+                out_channels,
             ),
             PartialGDN(channels=out_channels),
         )
@@ -97,11 +97,13 @@ class SynthesisFusedBlock(Module):
         super().__init__()
         self.__sequence = UnpackingSequential(
             PartialSpectralFusedMBConv(
-                in_channels, in_channels, kernel_size=3, padding=1
+                in_channels,
+                in_channels,
             ),
             PartialIGDN(channels=in_channels),
             PartialSpectralFusedMBConv(
-                in_channels, in_channels, kernel_size=3, padding=1
+                in_channels,
+                in_channels,
             ),
             PartialSpectralConv2d(
                 in_channels, out_channels, kernel_size=3, padding=1, groups=out_channels
@@ -124,28 +126,38 @@ class SynthesisFusedBlock(Module):
 
 
 class InpaintingMode(Module):
-    def __init__(self, embedding_features: int, attention_heads: int) -> None:
+    def __init__(
+        self,
+        embedding_features: int,
+        attention_heads: int,
+        latent_size: int | tuple[int, int],
+    ) -> None:
         super().__init__()
-        assert 8 * embedding_features % 3 == attention_heads
+        assert 8 * embedding_features % attention_heads == 0
         self.__analysis_blocks = ParameterList(
-            AnalysisConvolutionBlock(3, embedding_features),
-            AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
-            AnalysisFusedBlock(2 * embedding_features, 4 * embedding_features),
-            AnalysisFusedBlock(4 * embedding_features, 8 * embedding_features),
+            [
+                AnalysisConvolutionBlock(3, embedding_features),
+                AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
+                AnalysisFusedBlock(2 * embedding_features, 4 * embedding_features),
+                AnalysisFusedBlock(4 * embedding_features, 8 * embedding_features),
+            ]
         )
         self.__low_level_recon = UnpackingSequential(
             PartialMultiheadAttention(
                 channels=8 * embedding_features,
                 heads=attention_heads,
                 channels_per_head=8 * embedding_features // attention_heads,
+                latent_size=latent_size,
             ),
             PartialIGDN(8 * embedding_features),
         )
         self.__synthesis_blocks = ParameterList(
-            SynthesisFusedBlock(8 * embedding_features, 4 * embedding_features),
-            SynthesisFusedBlock(4 * embedding_features, 2 * embedding_features),
-            SynthesisConvolutionBlock(2 * embedding_features, embedding_features),
-            SynthesisConvolutionBlock(embedding_features, 3),
+            [
+                SynthesisFusedBlock(8 * embedding_features, 4 * embedding_features),
+                SynthesisFusedBlock(4 * embedding_features, 2 * embedding_features),
+                SynthesisConvolutionBlock(2 * embedding_features, embedding_features),
+                SynthesisConvolutionBlock(embedding_features, 3),
+            ]
         )
 
     def forward(self, tensor: Tensor, mask: Tensor) -> Tensor:
