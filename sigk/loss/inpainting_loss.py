@@ -113,7 +113,7 @@ class InpaintingLoss(Module):
             loss += self.__l1_loss(comp_gram, x_gram)
         return self.style_lambda * loss
 
-    def __call__(
+    def forward(
         self, x: Tensor, x_hat: Tensor, mask: Tensor
     ) -> tuple[Tensor, dict[str, Tensor]]:
         hole_mask = 1 - mask
