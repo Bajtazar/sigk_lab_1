@@ -37,7 +37,9 @@ class InpaintingImageDataset(CompressedImageDataset):
     ) -> None:
         super().__init__(
             root=root,
-            precache_transformation=Compose(Resize(image_size), CenterCrop(image_size)),
+            precache_transformation=Compose(
+                [Resize(image_size), CenterCrop(image_size)]
+            ),
             postcache_transformation=self.Patcher(
                 patch_sizes=patch_sizes, patch_count=patch_count
             ),

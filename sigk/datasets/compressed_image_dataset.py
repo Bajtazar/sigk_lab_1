@@ -36,7 +36,7 @@ class CompressedImageDataset(Dataset):
     ) -> bytes:
         image = read_image(path, ImageReadMode.RGB)
         if precache_transformation is not None:
-            image = precache_transformation
+            image = precache_transformation(image)
         return encode_png(image)
 
     def __get_dataset_images(self) -> Generator[str, None, None]:
