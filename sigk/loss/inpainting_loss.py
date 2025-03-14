@@ -7,12 +7,17 @@ from numpy import prod
 
 class InpaintingLoss(Module):
     def __init__(
-        self, image_size: int | tuple[int, int], max_batch_size: int, channels: int = 3
+        self,
+        image_size: int | tuple[int, int],
+        max_batch_size: int,
+        channels: int = 3,
+        smooth_lamda: float = 0.1,
     ) -> None:
         super().__init__()
         self.__image_size = _pair(image_size)
         self.__max_batch_size = max_batch_size
         self.__channels = channels
+        self.__smooth_lambda = smooth_lamda
         self.__initialize_imagenet_mean_and_stddev()
 
     @property
@@ -26,6 +31,10 @@ class InpaintingLoss(Module):
     @property
     def max_batch_size(self) -> int:
         return self.__max_batch_size
+
+    @property
+    def smooth_lambda(self) -> float:
+        return self.__smooth_lambda
 
     def __initialize_imagenet_mean_and_stddev(self) -> None:
         self.register_buffer(
@@ -43,6 +52,11 @@ class InpaintingLoss(Module):
     def __normalize_to_imagenet(self, tensor: Tensor) -> Tensor:
         tensor = tensor - self.imagenet_mean
         return tensor / self.imagenet_stddev
+
+    def __total_variation_loss(self, x_hat: Tensor) -> Tensor:
+        horizontal_loss = abs(x_hat[..., :-1] - x_hat[..., 1:]).mean()
+        vertical_loss = abs(x_hat[..., :-1, :] - x_hat[..., 1:, :]).mean()
+        return self.smooth_lambda * (horizontal_loss + vertical_loss)
 
     def __call__(self, x: Tensor, x_hat: Tensor) -> Tensor:
         x = self.__normalize_to_imagenet(x)
