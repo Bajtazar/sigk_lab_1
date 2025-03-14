@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from torch import Tensor, float32
+from torch import Tensor
 
 from torchvision.io import (
     ImageReadMode,
@@ -34,7 +34,7 @@ class CompressedImageDataset(Dataset):
     def __transform(
         self, path: str, precache_transformation: Optional[TransformCb]
     ) -> bytes:
-        image = read_image(path, ImageReadMode.RGB).to(float32) / 255.0
+        image = read_image(path, ImageReadMode.RGB)
         if precache_transformation is not None:
             image = precache_transformation
         return encode_png(image)
