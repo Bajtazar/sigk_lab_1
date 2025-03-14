@@ -36,7 +36,7 @@ class Vgg16Embedding(Module):
         return features
 
 
-class InpaintingLoss:
+class InpaintingLoss(Module):
     def __init__(
         self,
         valid_lambda: float = 1.0,
