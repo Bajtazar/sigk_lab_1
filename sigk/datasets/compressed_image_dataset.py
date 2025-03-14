@@ -1,7 +1,12 @@
 from torch.utils.data import Dataset
-from torch import frombuffer, Tensor
+from torch import Tensor, float32
 
-from torchvision.io import decode_image, ImageReadMode
+from torchvision.io import (
+    ImageReadMode,
+    read_image,
+    encode_png,
+    decode_png,
+)
 
 from typing import Generator, Callable, Optional
 from os.path import isfile
@@ -12,14 +17,27 @@ TransformCb = Callable[[Tensor], Tensor]
 
 
 class CompressedImageDataset(Dataset):
-    def __init__(self, root: str, transformation: Optional[TransformCb] = None) -> None:
+    def __init__(
+        self,
+        root: str,
+        precache_transformation: Optional[TransformCb] = None,
+        postcache_transformation: Optional[TransformCb] = None,
+    ) -> None:
         super().__init__()
         self.__root = root
         self.__cache = [
-            (path, frombuffer(self.__read_file(path)))
+            (path, self.__transform(path, precache_transformation))
             for path in self.__get_dataset_images()
         ]
-        self.__transformation = transformation
+        self.__postcache_transformation = postcache_transformation
+
+    def __transform(
+        self, path: str, precache_transformation: Optional[TransformCb]
+    ) -> bytes:
+        image = read_image(path, ImageReadMode.RGB).to(float32) / 255.0
+        if precache_transformation is not None:
+            image = precache_transformation
+        return encode_png(image)
 
     def __get_dataset_images(self) -> Generator[str, None, None]:
         for root, _, image_paths in walk(self.root_directory):
@@ -32,16 +50,11 @@ class CompressedImageDataset(Dataset):
     def root_directory(self) -> str:
         return self.__root
 
-    @staticmethod
-    def __read_file(path: str) -> bytes:
-        with open(path, "rb") as handle:
-            return handle.read()
-
     def __getitem__(self, index: int) -> tuple[Tensor, str]:
         path, cached = self.__cache[index]
-        image = decode_image(cached, ImageReadMode.RGB)
-        if self.__transformation:
-            image = self.__transformation(image)
+        image = decode_png(cached, ImageReadMode.RGB)
+        if self.__postcache_transformation:
+            image = self.__postcache_transformation(image)
         return image, path
 
     def __len__(self) -> None:
