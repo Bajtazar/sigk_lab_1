@@ -55,11 +55,8 @@ class InpaintingLoss:
         return self.smooth_lambda * (horizontal_loss + vertical_loss)
 
     def __perceptual_loss(
-        self, x: Tensor, x_hat: Tensor, composition: Tensor
+        self, embedded_x: Tensor, embedded_x_hat: Tensor, embedded_comp: Tensor
     ) -> Tensor:
-        embedded_x = self.__embedding(x)
-        embedded_x_hat = self.__embedding(x_hat)
-        embedded_comp = self.__embedding(composition)
         recon_loss = self.__l1_loss(embedded_x, embedded_x_hat)
         comp_loss = self.__l1_loss(embedded_x, embedded_comp)
         return self.__perceptual_lambda * (recon_loss + comp_loss)
@@ -67,10 +64,15 @@ class InpaintingLoss:
     def __call__(self, x: Tensor, x_hat: Tensor, mask: Tensor) -> Tensor:
         hole_mask = 1 - mask
         composition = self.__get_composition(x, x_hat, mask, hole_mask)
+        embedded_x = self.__embedding(x)
+        embedded_x_hat = self.__embedding(x_hat)
+        embedded_comp = self.__embedding(composition)
         valid_loss = self.__valid_loss(x, x_hat, mask)
         hole_loss = self.__hole_loss(x, x_hat, hole_mask)
         total_variation_loss = self.__total_variation_loss(composition)
-        perceptual_loss = self.__perceptual_loss(x, x_hat, composition)
+        perceptual_loss = self.__perceptual_loss(
+            embedded_x, embedded_x_hat, embedded_comp
+        )
 
     def __calculate_gram_matrix(matrix: Tensor) -> Tensor:
         left = matrix.flatten(dim=-2)
