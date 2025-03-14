@@ -59,12 +59,17 @@ class __GDNBase(Module):
                 f" ({input_tensor.shape[-3]}), expected ({self.beta.shape[0]})"
             )
 
-    def _calculate_norm(self, input_tensor: Tensor) -> Tensor:
-        self.__assert_input_size(input_tensor)
+    @property
+    def _projected_weights(self) -> tuple[Tensor, Tensor]:
         channels = self.beta.shape[0]
         beta = self.__beta_bound(self.beta) ** 2 - self.pedestal
         gamma = self.__gamma_bound(self.gamma) ** 2 - self.pedestal
         gamma_view = gamma.view(channels, channels, 1, 1)
+        return gamma_view, beta
+
+    def _calculate_norm(self, input_tensor: Tensor) -> Tensor:
+        self.__assert_input_size(input_tensor)
+        gamma_view, beta = self._projected_weights
         return conv2d(input_tensor**2, gamma_view, beta)
 
 
