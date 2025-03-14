@@ -57,7 +57,7 @@ class SynthesisConvolutionBlock(Module):
         return self.__norm(*self.__conv(pre_recon, pre_recon_mask))
 
 
-class AnalysisFusedBlocks(Module):
+class AnalysisFusedBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.__conv = PartialSpectralFusedMBConv(
@@ -81,6 +81,31 @@ class AnalysisFusedBlocks(Module):
         return (ll, ll_mask), (bands, bands_masks)
 
 
+class SynthesisFusedBlock(Module):
+    def __init__(self, in_channels: int, out_channels: int) -> None:
+        super().__init__()
+        self.__idwt = PartialDwt2D(
+            channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
+        )
+        self.__cast = PartialSpectralConv2d(
+            in_channels, out_channels, kernel_size=3, padding=1, groups=in_channels
+        )
+        self.__conv = PartialSpectralFusedMBConv(
+            out_channels, out_channels, kernel_size=3, padding=1
+        )
+        self.__norm = PartialGDN(channels=out_channels)
+
+    def forward(
+        self,
+        ll: Tensor,
+        ll_mask: Tensor,
+        bands: tuple[Tensor, Tensor, Tensor],
+        bands_masks: tuple[Tensor, Tensor, Tensor],
+    ) -> tuple[Tensor, Tensor]:
+        pre_recon, pre_recon_mask = self.__idwt((ll, *bands), (ll_mask, *bands_masks))
+        return self.__norm(*self.__conv(*self.__cast(pre_recon, pre_recon_mask)))
+
+
 class InpaintingMode(Module):
     def __init__(self, embedding_features: int) -> None:
         super().__init__()
@@ -90,8 +115,8 @@ class InpaintingMode(Module):
             AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
         )
         self.__analysis_fused_blocks = ParameterList(
-            AnalysisFusedBlocks(2 * embedding_features, 4 * embedding_features),
-            AnalysisFusedBlocks(4 * embedding_features, 8 * embedding_features),
+            AnalysisFusedBlock(2 * embedding_features, 4 * embedding_features),
+            AnalysisFusedBlock(4 * embedding_features, 8 * embedding_features),
         )
         self.__low_level_recon = PartialMultiheadAttention(
             channels=8 * embedding_features,
@@ -101,4 +126,8 @@ class InpaintingMode(Module):
         self.__synthesis_conv_blocks = ParameterList(
             SynthesisConvolutionBlock(2 * embedding_features, embedding_features),
             SynthesisConvolutionBlock(embedding_features, 3),
+        )
+        self.__synthesis_fused_blocks = ParameterList(
+            SynthesisFusedBlock(8 * embedding_features, 4 * embedding_features),
+            SynthesisFusedBlock(4 * embedding_features, 2 * embedding_features),
         )
