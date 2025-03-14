@@ -3,6 +3,7 @@ from sigk.layers.spectral.partial_spectral_fused_mb_conv import (
     PartialSpectralFusedMBConv,
 )
 from sigk.layers.partial_gdn import PartialGDN
+from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
 from sigk.layers.dwt import PartialDwt2D, COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
 
 from torch import Tensor
@@ -57,6 +58,7 @@ class AnalysisFusedBlocks(Module):
 class InpaintingMode(Module):
     def __init__(self, embedding_features: int) -> None:
         super().__init__()
+        assert embedding_features % 3 == 0, "Embedding features have to be a power of 3"
         self.__analysis_conv_blocks = ParameterList(
             self.AnalysisConvolutionBlock(3, embedding_features),
             self.AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
@@ -64,4 +66,9 @@ class InpaintingMode(Module):
         self.__analysis_fused_blocks = ParameterList(
             self.AnalysisFusedBlocks(2 * embedding_features, 4 * embedding_features),
             self.AnalysisFusedBlocks(4 * embedding_features, 8 * embedding_features),
+        )
+        self.__low_level_recon = PartialMultiheadAttention(
+            channels=8 * embedding_features,
+            heads=24,
+            channels_per_head=embedding_features // 3,
         )
