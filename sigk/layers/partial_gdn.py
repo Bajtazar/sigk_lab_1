@@ -5,7 +5,7 @@ from torch import Tensor
 
 class PartialGDNBase:
     def _calculate_mask(self, mask: Tensor) -> Tensor:
-        out_mask = mask.movedim(1, -1).sum(dim=-1).movedim(-1, 1).clamp(min=0, max=1)
+        out_mask = mask.sum(dim=1).clamp(min=0, max=1)
         return out_mask.repeat(1, mask.shape[1], 1, 1)
 
 
