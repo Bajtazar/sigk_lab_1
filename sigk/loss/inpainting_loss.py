@@ -1,7 +1,39 @@
-from torch import Tensor
-from torch.nn import L1Loss
+from torch import Tensor, tensor
+from torch.nn import L1Loss, Module, Sequential, ParameterList
+
+from torchvision.models import vgg16
 
 from numpy import prod
+
+
+class Vgg16Embedding(Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.register_buffer("mean", tensor([0.485, 0.456, 0.406]).view(-1, 1, 1))
+        self.register_buffer("stddev", tensor([0.229, 0.224, 0.225]).view(-1, 1, 1))
+        model = vgg16(pretrained=True)
+        self.__embeddings = ParameterList(
+            [
+                Sequential(*model.features[:5]),
+                Sequential(*model.features[5:10]),
+                Sequential(*model.features[10:17]),
+            ]
+        )
+
+        for feature in self.__embeddings:
+            for param in feature.parameters():
+                param.requires_grad = False
+
+    def __normalize(self, tensor: Tensor) -> Tensor:
+        return (tensor - self.mean) / self.stddev
+
+    def forward(self, tensor: Tensor) -> list[Tensor]:
+        tensor = self.__normalize(tensor)
+        features = []
+        for embedding in self.__embeddings:
+            tensor = embedding(tensor)
+            features.append(tensor)
+        return features
 
 
 class InpaintingLoss:
@@ -20,7 +52,7 @@ class InpaintingLoss:
         self.__perceptual_lambda = perceptual_lambda
         self.__style_lambda = style_lambda
         self.__l1_loss = L1Loss()
-        self.__embedding = None
+        self.__embedding = Vgg16Embedding()
 
     @property
     def valid_lambda(self) -> float:
