@@ -4,7 +4,6 @@ from torch.nn.init import trunc_normal_
 from torch.nn import Module, Linear, Parameter
 from torch import zeros, stack, meshgrid, arange, Tensor
 
-from sigk.layers.gdn import GDN
 
 from typing import Optional
 
@@ -20,7 +19,6 @@ class MultiheadAttention(Module):
         scale: Optional[float] = None,
     ) -> None:
         super().__init__()
-        self.__norm = GDN(channels)
         self.__embedding_channels = heads * channels_per_head
         self.__qkv_projection = Linear(
             in_features=channels, out_features=self.__embedding_channels * 3, bias=bias
@@ -98,7 +96,7 @@ class MultiheadAttention(Module):
             .chunk(3, dim=0)
         )
 
-    def _perform_attention(self, tensor: Tensor) -> Tensor:
+    def forward(self, tensor: Tensor) -> Tensor:
         original_image_shape = tensor.shape
         tensor = tensor.flatten(start_dim=-2).movedim(1, -1)
 
@@ -111,7 +109,3 @@ class MultiheadAttention(Module):
         result = self.__out_projection(result)
 
         return result.movedim(-1, 1).reshape(original_image_shape)
-
-    def forward(self, tensor: Tensor) -> Tensor:
-        tensor = self.__norm(tensor)
-        return self._perform_attention(tensor)

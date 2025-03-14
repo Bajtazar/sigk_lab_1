@@ -146,6 +146,7 @@ class InpaintingMode(Module):
             ]
         )
         self.__low_level_recon = UnpackingSequential(
+            PartialGDN(channels=16 * embedding_features),
             PartialMultiheadAttention(
                 channels=16 * embedding_features,
                 heads=attention_heads,
