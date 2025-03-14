@@ -2,7 +2,7 @@ from sigk.layers.spectral.partial_spectral_conv_2d import PartialSpectralConv2d
 from sigk.layers.spectral.partial_spectral_fused_mb_conv import (
     PartialSpectralFusedMBConv,
 )
-from sigk.layers.partial_gdn import PartialGDN
+from sigk.layers.partial_gdn import PartialGDN, PartialIGDN
 from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
 from sigk.layers.dwt import (
     PartialDwt2D,
@@ -46,9 +46,9 @@ class SynthesisConvolutionBlock(Module):
         )
         self.__sequence = UnpackingSequential(
             PartialSpectralConv2d(in_channels, in_channels, kernel_size=3, padding=1),
-            PartialGDN(channels=in_channels),
+            PartialIGDN(channels=in_channels),
             PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            PartialGDN(channels=out_channels),
+            PartialIGDN(channels=out_channels),
         )
 
     def forward(
@@ -99,14 +99,14 @@ class SynthesisFusedBlock(Module):
             PartialSpectralFusedMBConv(
                 in_channels, in_channels, kernel_size=3, padding=1
             ),
-            PartialGDN(channels=in_channels),
+            PartialIGDN(channels=in_channels),
             PartialSpectralFusedMBConv(
                 in_channels, in_channels, kernel_size=3, padding=1
             ),
             PartialSpectralConv2d(
                 in_channels, out_channels, kernel_size=3, padding=1, groups=out_channels
             ),
-            PartialGDN(channels=out_channels),
+            PartialIGDN(channels=out_channels),
         )
         self.__idwt = PartialDwt2D(
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
@@ -127,24 +127,34 @@ class InpaintingMode(Module):
     def __init__(self, embedding_features: int) -> None:
         super().__init__()
         assert embedding_features % 3 == 0, "Embedding features have to be a power of 3"
-        self.__analysis_conv_blocks = ParameterList(
+        self.__analysis_blocks = ParameterList(
             AnalysisConvolutionBlock(3, embedding_features),
             AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
-        )
-        self.__analysis_fused_blocks = ParameterList(
             AnalysisFusedBlock(2 * embedding_features, 4 * embedding_features),
             AnalysisFusedBlock(4 * embedding_features, 8 * embedding_features),
         )
-        self.__low_level_recon = PartialMultiheadAttention(
-            channels=8 * embedding_features,
-            heads=24,
-            channels_per_head=embedding_features // 3,
+        self.__low_level_recon = UnpackingSequential(
+            PartialMultiheadAttention(
+                channels=8 * embedding_features,
+                heads=24,
+                channels_per_head=embedding_features // 3,
+            ),
+            PartialIGDN(8 * embedding_features),
         )
-        self.__synthesis_conv_blocks = ParameterList(
+        self.__synthesis_blocks = ParameterList(
+            SynthesisFusedBlock(8 * embedding_features, 4 * embedding_features),
+            SynthesisFusedBlock(4 * embedding_features, 2 * embedding_features),
             SynthesisConvolutionBlock(2 * embedding_features, embedding_features),
             SynthesisConvolutionBlock(embedding_features, 3),
         )
-        self.__synthesis_fused_blocks = ParameterList(
-            SynthesisFusedBlock(8 * embedding_features, 4 * embedding_features),
-            SynthesisFusedBlock(4 * embedding_features, 2 * embedding_features),
-        )
+
+    def forward(self, tensor: Tensor, mask: Tensor) -> Tensor:
+        residuals = []
+        ll, ll_mask = tensor, mask
+        for block in self.__analysis_blocks:
+            (ll, ll_mask), residual = block(ll, ll_mask)
+            residuals.append(residual)
+        recon, recon_mask = self.__low_level_recon(ll, ll_mask)
+        for block, residue in zip(self.__synthesis_blocks, reversed(residuals)):
+            recon, recon_mask = block(recon, recon_mask, *residue)
+        return recon
