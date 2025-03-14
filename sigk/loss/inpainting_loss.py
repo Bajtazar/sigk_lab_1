@@ -28,6 +28,11 @@ class InpaintingLoss(Module):
     def smooth_lambda(self) -> float:
         return self.__smooth_lambda
 
+    def __get_composition(
+        self, x: Tensor, x_hat: Tensor, mask: Tensor, hole_mask: Tensor
+    ) -> Tensor:
+        return mask * x + hole_mask * x_hat
+
     def __valid_loss(self, x: Tensor, x_hat: Tensor, mask: Tensor) -> Tensor:
         return self.valid_lambda * abs(x * mask - x_hat * mask).mean()
 
@@ -36,6 +41,7 @@ class InpaintingLoss(Module):
 
     def __call__(self, x: Tensor, x_hat: Tensor, mask: Tensor) -> Tensor:
         hole_mask = 1 - mask
+        composition = self.__get_composition(x, x_hat, mask, hole_mask)
         valid_loss = self.__valid_loss(x, x_hat, mask)
         hole_loss = self.__hole_loss(x, x_hat, hole_mask)
 
