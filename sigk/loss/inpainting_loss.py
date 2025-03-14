@@ -11,12 +11,14 @@ class InpaintingLoss:
         hole_lambda: float = 6.0,
         smooth_lamda: float = 0.1,
         perceptual_lambda: float = 0.05,
+        style_lambda: float = 120,
     ) -> None:
         super().__init__()
         self.__valid_lambda = valid_lambda
         self.__hole_lambda = hole_lambda
         self.__smooth_lambda = smooth_lamda
         self.__perceptual_lambda = perceptual_lambda
+        self.__style_lambda = style_lambda
         self.__l1_loss = L1Loss()
         self.__embedding = None
 
@@ -35,6 +37,10 @@ class InpaintingLoss:
     @property
     def perceptual_lambda(self) -> float:
         return self.__perceptual_lambda
+
+    @property
+    def style_lambda(self) -> float:
+        return self.__style_lambda
 
     def __get_composition(
         self, x: Tensor, x_hat: Tensor, mask: Tensor, hole_mask: Tensor
@@ -57,9 +63,23 @@ class InpaintingLoss:
     def __perceptual_loss(
         self, embedded_x: Tensor, embedded_x_hat: Tensor, embedded_comp: Tensor
     ) -> Tensor:
-        recon_loss = self.__l1_loss(embedded_x, embedded_x_hat)
-        comp_loss = self.__l1_loss(embedded_x, embedded_comp)
-        return self.__perceptual_lambda * (recon_loss + comp_loss)
+        loss = 0
+        for i in range(3):
+            loss += self.__l1_loss(embedded_x[i], embedded_x_hat[i])
+            loss += self.__l1_loss(embedded_x[i], embedded_comp[i])
+        return self.__perceptual_lambda * loss
+
+    def __style_loss(
+        self, embedded_x: Tensor, embedded_x_hat: Tensor, embedded_comp: Tensor
+    ) -> Tensor:
+        loss = 0
+        for i in range(3):
+            x_gram = self.__calculate_gram_matrix(embedded_x[i])
+            x_hat_gram = self.__calculate_gram_matrix(embedded_x_hat[i])
+            comp_gram = self.__calculate_gram_matrix(embedded_comp[i])
+            loss += self.__l1_loss(x_hat_gram, x_gram)
+            loss += self.__l1_loss(comp_gram, x_gram)
+        return self.style_lambda * loss
 
     def __call__(self, x: Tensor, x_hat: Tensor, mask: Tensor) -> Tensor:
         hole_mask = 1 - mask
@@ -73,7 +93,9 @@ class InpaintingLoss:
         perceptual_loss = self.__perceptual_loss(
             embedded_x, embedded_x_hat, embedded_comp
         )
+        style_loss = self.__style_loss(embedded_x, embedded_x_hat, embedded_comp)
 
+    @staticmethod
     def __calculate_gram_matrix(matrix: Tensor) -> Tensor:
         left = matrix.flatten(dim=-2)
         right = left.transpose(-2, -1)
