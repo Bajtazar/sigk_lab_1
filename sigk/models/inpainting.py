@@ -32,7 +32,7 @@ class Inpainting(LightningModule):
 
     def training_step(self, batch: tuple[Tensor, Tensor], batch_idx: int) -> Tensor:
         x, mask = batch
-        x_hat = self.__model(x, mask)
+        x_hat = self.__model(x * mask, mask)
         loss, stats = self.__loss(x, x_hat, mask)
         self.log("train loss", loss)
         for stat, value in stats.items():
@@ -40,17 +40,27 @@ class Inpainting(LightningModule):
         return loss
 
     def __validation_step(self, x: Tensor, mask: Tensor) -> None:
-        x_hat = self.__model(x, mask)
+        x_hat = self.__model(x * mask, mask)
         loss, stats = self.__loss(x, x_hat, mask)
         self.log("validation loss", loss, add_dataloader_idx=False)
         for stat, value in stats.items():
             self.log(f"validation {stat}", value, add_dataloader_idx=False)
 
     def __test_step(self, x: Tensor, mask: Tensor, image_path: str) -> None:
-        reconstruction_handle = self._test_step(image_handle)
+        x_hat = self.__model(x * mask, mask)
         self.logger.experiment.add_image(
-            f"test_images/{image_path.split('/')[-1]}",
-            reconstruction_handle.image,
+            f"test_images/{image_path.split('/')[-1]}_recon",
+            x_hat,
+            self.current_epoch,
+        )
+        self.logger.experiment.add_image(
+            f"test_images/{image_path.split('/')[-1]}_masked",
+            x * mask,
+            self.current_epoch,
+        )
+        self.logger.experiment.add_image(
+            f"test_images/{image_path.split('/')[-1]}_orig",
+            x,
             self.current_epoch,
         )
 
