@@ -13,13 +13,16 @@ class Wavelet:
         analysis_high_pass: list[float],
         synthesis_low_pass: list[float],
         synthesis_high_pass: list[float],
-    ) -> None: ...
+    ) -> None:
+        ...
 
     @overload
-    def __init__(self, wavelet: PyWavelet) -> None: ...
+    def __init__(self, wavelet: PyWavelet) -> None:
+        ...
 
     @overload
-    def __init__(self, name: str) -> None: ...
+    def __init__(self, name: str) -> None:
+        ...
 
     def __init__(self, *args) -> None:
         if len(args) == 1:

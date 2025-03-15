@@ -20,12 +20,11 @@ class PartialIDwt2D(IDwt2D, PartialDwtBase):
         wavelet: Wavelet | PyWavelet,
         dtype: Optional[tensor_dtype] = None,
         device: Optional[tensor_device] = None,
-        epsilon: float = 1e-8,
     ) -> None:
         IDwt2D.__init__(
             self, channels=channels, wavelet=wavelet, dtype=dtype, device=device
         )
-        PartialDwtBase.__init__(self, epsilon=epsilon)
+        PartialDwtBase.__init__(self)
 
     def __calculate_pass_mask(
         self,
