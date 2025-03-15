@@ -54,9 +54,9 @@ class Inpainting(LightningModule):
         x_hat = self.__model(x * mask, mask)
         tensor_value_force_assert(x_hat)
         loss, stats = self.__loss(x, x_hat, mask)
-        self.log("train loss", loss)
+        self.log("train loss", loss, batch_size=x.shape[0])
         for stat, value in stats.items():
-            self.log(f"train {stat}", value)
+            self.log(f"train {stat}", value, batch_size=x.shape[0])
         tensor_value_force_assert(loss)
         return loss
 
@@ -64,10 +64,17 @@ class Inpainting(LightningModule):
         x_hat = self.__model(x * mask, mask)
         tensor_value_force_assert(x_hat)
         loss, stats = self.__loss(x, x_hat, mask)
-        self.log("validation loss", loss, add_dataloader_idx=False)
+        self.log(
+            "validation loss", loss, add_dataloader_idx=False, batch_size=x.shape[0]
+        )
         tensor_value_force_assert(loss)
         for stat, value in stats.items():
-            self.log(f"validation {stat}", value, add_dataloader_idx=False)
+            self.log(
+                f"validation {stat}",
+                value,
+                add_dataloader_idx=False,
+                batch_size=x.shape[0],
+            )
 
     def __test_step(self, x: Tensor, mask: Tensor, image_path: str) -> None:
         x_hat = self.__model(x * mask, mask)
