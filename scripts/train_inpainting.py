@@ -138,7 +138,7 @@ def main(
     seed_everything(seed)
     model = Inpainting(
         learning_rate=learning_rate,
-        scheduler_params=dict(mode="min", factor=0.5, patience=20, eps=1.2e-6),
+        scheduler_params=dict(mode="min", factor=0.5, patience=100, eps=1.2e-6),
         epochs_per_test=epochs_per_test,
         test_on_first_epoch=True,
         embedding_features=64,
