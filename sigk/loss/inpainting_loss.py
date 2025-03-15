@@ -134,6 +134,6 @@ class InpaintingLoss(Module):
 
     @staticmethod
     def __calculate_gram_matrix(matrix: Tensor) -> Tensor:
-        left = matrix.flatten(dim=-2)
+        left = matrix.flatten(start_dim=-2)
         right = left.transpose(-2, -1)
         return left @ right / prod(left.shape[1:])

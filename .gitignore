@@ -3,3 +3,5 @@ venv/
 build/
 .ruff_cache/
 __pycache__/
+models/
+logs/

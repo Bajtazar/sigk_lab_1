@@ -133,8 +133,8 @@ def main(
         scheduler_params=dict(mode="min", factor=0.5, patience=20, eps=1.2e-6),
         epochs_per_test=epochs_per_test,
         test_on_first_epoch=True,
-        embedding_features=64,
-        attention_heads=64,
+        embedding_features=16,
+        attention_heads=16,
         latent_size=15,
     )
 
@@ -146,7 +146,7 @@ def main(
     )
     logger = TensorBoardLogger(
         save_dir=".",
-        name="session_instances",
+        name="logs",
         version=run_name,
     )
     trainer = Trainer(

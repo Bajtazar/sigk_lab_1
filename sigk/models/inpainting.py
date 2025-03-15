@@ -56,17 +56,17 @@ class Inpainting(LightningModule):
         x_hat = self.__model(x * mask, mask)
         self.logger.experiment.add_image(
             f"test_images/{image_path.split('/')[-1]}_recon",
-            x_hat,
+            x_hat.squeeze(0),
             self.current_epoch,
         )
         self.logger.experiment.add_image(
             f"test_images/{image_path.split('/')[-1]}_masked",
-            x * mask,
+            (x * mask).squeeze(0),
             self.current_epoch,
         )
         self.logger.experiment.add_image(
             f"test_images/{image_path.split('/')[-1]}_orig",
-            x,
+            (x).squeeze(0),
             self.current_epoch,
         )
 
@@ -79,7 +79,7 @@ class Inpainting(LightningModule):
         if dataloader_idx == 0:
             self.__validation_step(*batch[0])
         elif dataloader_idx == 1:
-            (x, mask), path = batch
+            (x, mask), (path,) = batch
             if (
                 self.current_epoch == 0
                 and self.__test_on_first_epoch
