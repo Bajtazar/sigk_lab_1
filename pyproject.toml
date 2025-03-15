@@ -19,3 +19,6 @@ dependencies=[
     "pywavelets",
     "pytest"
 ]
+
+[tool.setuptools]
+package-dir = {"sigk" = "sigk"}
