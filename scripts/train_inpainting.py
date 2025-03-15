@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader, random_split
 from torch import use_deterministic_algorithms
 
 from os.path import exists
+from os import listdir
 
 
 IMAGE_SIZE: int = 256
@@ -86,10 +87,17 @@ def build_callbacks(run_name: str, period: int, epochs: int) -> list[Callback]:
 
 
 def checkpoint_path(run_name: str) -> str | None:
-    checkpoint_path = f"models/{run_name}/checkpoints/last.ckpt"
-    if not exists(checkpoint_path):
+    checkpoints_dir = f"models/{run_name}/checkpoints"
+    if not exists(checkpoints_dir):
         return None
-    return checkpoint_path
+    last = f"{checkpoints_dir}/last.ckpt"
+    if exists(last):
+        return last
+    files = list(listdir(checkpoints_dir))
+    if not files:
+        return None
+    mapped = {file: int(file.split(".")[0].split("=")[-1]) for file in files}
+    return f"{checkpoints_dir}/{max(mapped, key=mapped.get)}"
 
 
 @command()
