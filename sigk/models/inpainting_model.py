@@ -2,7 +2,7 @@ from sigk.layers.spectral.partial_spectral_conv_2d import PartialSpectralConv2d
 from sigk.layers.spectral.partial_spectral_fused_mb_conv import (
     PartialSpectralFusedMBConv,
 )
-from sigk.layers.partial_gdn import PartialGDN, PartialIGDN
+from sigk.layers.partial_gdn import PartialGDN, PartialGDN
 from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
 from sigk.layers.dwt import (
     PartialDwt2D,
@@ -46,9 +46,9 @@ class SynthesisConvolutionBlock(Module):
         )
         self.__sequence = UnpackingSequential(
             PartialSpectralConv2d(in_channels, in_channels, kernel_size=3, padding=1),
-            PartialIGDN(channels=in_channels),
+            PartialGDN(channels=in_channels),
             PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            PartialIGDN(channels=out_channels),
+            PartialGDN(channels=out_channels),
         )
 
     def forward(
@@ -100,7 +100,7 @@ class SynthesisFusedBlock(Module):
                 in_channels,
                 in_channels,
             ),
-            PartialIGDN(channels=in_channels),
+            PartialGDN(channels=in_channels),
             PartialSpectralFusedMBConv(
                 in_channels,
                 in_channels,
@@ -108,7 +108,7 @@ class SynthesisFusedBlock(Module):
             PartialSpectralConv2d(
                 in_channels, out_channels, kernel_size=2, padding=1, groups=out_channels
             ),
-            PartialIGDN(channels=out_channels),
+            PartialGDN(channels=out_channels),
         )
         self.__idwt = PartialIDwt2D(
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
@@ -153,7 +153,7 @@ class InpaintingModel(Module):
                 channels_per_head=16 * embedding_features // attention_heads,
                 latent_size=latent_size,
             ),
-            PartialIGDN(16 * embedding_features),
+            PartialGDN(16 * embedding_features),
         )
         self.__synthesis_blocks = ParameterList(
             [
