@@ -100,7 +100,7 @@ class Inpainting(LightningModule):
             if (
                 self.current_epoch == 0
                 and self.__test_on_first_epoch
-                or (self.current_epoch + 1 % self.__epochs_per_test == 0)
+                or ((self.current_epoch + 1) % self.__epochs_per_test == 0)
             ):
                 self.__test_step(x, mask, path)
         else:
