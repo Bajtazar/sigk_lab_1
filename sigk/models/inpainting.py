@@ -15,6 +15,8 @@ class Inpainting(LightningModule):
         self,
         epochs_per_test: int,
         test_on_first_epoch: int,
+        learning_rate: int,
+        scheduler_params: dict[str, float | int | str],
         embedding_features: int,
         attention_heads: int,
         latent_size: int | tuple[int, int],
@@ -28,6 +30,8 @@ class Inpainting(LightningModule):
             attention_heads=attention_heads,
             latent_size=latent_size,
         )
+        self.__learning_rate = learning_rate
+        self.__scheduler_params = scheduler_params
         self.__loss = InpaintingLoss() if not loss_args else InpaintingLoss(**loss_args)
 
     def training_step(
