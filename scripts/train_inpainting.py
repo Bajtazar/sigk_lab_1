@@ -89,7 +89,7 @@ def build_callbacks(run_name: str, period: int, epochs: int) -> list[Callback]:
 
 
 def checkpoint_path(run_name: str) -> str | None:
-    checkpoint_path = f"session_instances/{run_name}/checkpoints/last.ckpt"
+    checkpoint_path = f"models/{run_name}/checkpoints/last.ckpt"
     if not exists(checkpoint_path):
         return None
     return checkpoint_path
