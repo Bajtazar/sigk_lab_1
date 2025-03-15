@@ -76,9 +76,9 @@ class Inpainting(LightningModule):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        if dataloader_idx == self.__VALIDATION_LOADER:
+        if dataloader_idx == 0:
             self.__validation_step(*batch[0])
-        elif dataloader_idx == self.__TEST_LOADER:
+        elif dataloader_idx == 1:
             (x, mask), path = batch
             if (
                 self.current_epoch == 0
