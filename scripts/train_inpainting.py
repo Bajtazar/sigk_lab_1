@@ -98,7 +98,7 @@ def checkpoint_path(run_name: str) -> str | None:
 @argument("test_dataset_path", type=Path(exists=True, readable=True))
 @option("--workers_num", type=int, default=0)
 @option("--batch_size", type=int, default=16)
-@option("--epochs", type=int, default=500)
+@option("--epochs", type=int, default=2000)
 @option("--devices", type=int, default=1)
 @option("--accelerator", type=str, default="gpu")
 @option("--learning_rate", type=float, default=1e-4)
