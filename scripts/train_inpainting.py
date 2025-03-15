@@ -69,11 +69,6 @@ def get_data_loaders(
 
 
 def build_callbacks(run_name: str, period: int, epochs: int) -> list[Callback]:
-    checkpoints = ModelCheckpoint(
-        dirpath=f"models/{run_name}/checkpoints",
-        every_n_epochs=period,
-        save_last=True,
-    )
     return [
         RichProgressBar(),
         LearningRateMonitor(logging_interval="step"),
@@ -84,7 +79,9 @@ def build_callbacks(run_name: str, period: int, epochs: int) -> list[Callback]:
             check_on_train_epoch_end=True,
             patience=epochs,  # Disable early stopping due to the learning rate not changing
         ),
-        checkpoints,
+        ModelCheckpoint(
+            dirpath=f"models/{run_name}/checkpoints", every_n_epochs=period
+        ),
     ]
 
 
