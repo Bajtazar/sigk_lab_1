@@ -12,7 +12,7 @@ from lightning.pytorch.callbacks import (
     Callback,
     EarlyStopping,
 )
-from lightning import Trainer
+from lightning import Trainer, seed_everything
 
 from torch.utils.data import DataLoader, random_split
 from torch import use_deterministic_algorithms
@@ -107,6 +107,7 @@ def checkpoint_path(run_name: str) -> str | None:
 @option("--learning_rate", type=float, default=1e-4)
 @option("--epochs_per_test", type=int, default=30)
 @option("--checkpoint_period", type=int, default=5)
+@option("--seed", type=int, default=0xBAAD)
 @option(
     "-an",
     "--allow-nondeterministic",
@@ -127,7 +128,9 @@ def main(
     learning_rate: float,
     epochs_per_test: int,
     checkpoint_period: int,
+    seed: int,
 ) -> None:
+    seed_everything(seed)
     model = Inpainting(
         learning_rate=learning_rate,
         scheduler_params=dict(mode="min", factor=0.5, patience=20, eps=1.2e-6),
