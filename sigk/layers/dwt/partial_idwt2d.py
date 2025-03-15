@@ -31,45 +31,59 @@ class PartialIDwt2D(IDwt2D, PartialDwtBase):
         self,
         mask: Tensor,
         pass_mask: Tensor,
+        pass_window_size: int,
         position: int,
         groups: int,
-    ) -> Tensor:
-        return self._perform_idwt_pass(
+    ) -> tuple[Tensor, Tensor]:
+        current_mask = self._perform_idwt_pass(
             mask, kernel=pass_mask, position=position, groups=groups
-        ).clamp(min=0, max=1)
+        )
+        ratio = pass_window_size / (current_mask + self.epsilon)
+        current_mask = current_mask.clamp(min=0, max=1)
+        return current_mask, current_mask * ratio
 
     @no_grad
-    def __calculate_pass_masks(self, mask: Tensor) -> Tensor:
-        second_pass_mask = self.__calculate_pass_mask(
+    def __calculate_pass_masks(self, mask: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        second_pass_mask, second_pass_ratio = self.__calculate_pass_mask(
             mask=mask,
             pass_mask=self.second_pass_mask_coeffs,
+            pass_window_size=self.second_pass_window_size,
             position=-1,
             groups=2 * self.channels,
         )
-        first_pass_mask = self.__calculate_pass_mask(
+        first_pass_mask, first_pass_ratio = self.__calculate_pass_mask(
             mask=second_pass_mask,
             pass_mask=self.first_pass_mask_coeffs,
+            pass_window_size=self.first_pass_window_size,
             position=-2,
             groups=self.channels,
         )
-        return first_pass_mask
+        return second_pass_ratio, first_pass_mask, first_pass_ratio
 
     def __peform_partial_idwt2d(
         self,
         tensor: Tensor,
         mask: Tensor,
+        first_pass_ratio: Tensor,
+        second_pass_ratio: Tensor,
     ) -> Tensor:
-        second_pass = self._perform_idwt_pass(
-            tensor * mask,
-            kernel=self.second_pass_kernel,
-            position=-1,
-            groups=2 * self.channels,
+        second_pass = (
+            self._perform_idwt_pass(
+                tensor * mask,
+                kernel=self.second_pass_kernel,
+                position=-1,
+                groups=2 * self.channels,
+            )
+            * second_pass_ratio
         )
-        return self._perform_idwt_pass(
-            second_pass,
-            kernel=self.first_pass_kernel,
-            position=-2,
-            groups=self.channels,
+        return (
+            self._perform_idwt_pass(
+                second_pass,
+                kernel=self.first_pass_kernel,
+                position=-2,
+                groups=self.channels,
+            )
+            * first_pass_ratio
         )
 
     def forward(
@@ -81,8 +95,10 @@ class PartialIDwt2D(IDwt2D, PartialDwtBase):
         tensor = self._apply_preprocessing(tensor, splitting_mode)
         mask = self._apply_preprocessing(mask, splitting_mode)
 
-        fp_mask = self.__calculate_pass_masks(mask)
+        sp_ratio, fp_mask, fp_ratio = self.__calculate_pass_masks(mask)
 
-        result = self.__peform_partial_idwt2d(tensor, mask=mask)
+        result = self.__peform_partial_idwt2d(
+            tensor, mask=mask, first_pass_ratio=fp_ratio, second_pass_ratio=sp_ratio
+        )
 
         return result, fp_mask
