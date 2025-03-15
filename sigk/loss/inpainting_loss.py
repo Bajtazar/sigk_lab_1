@@ -1,7 +1,7 @@
 from torch import Tensor, tensor
 from torch.nn import L1Loss, Module, Sequential, ParameterList
 
-from torchvision.models import vgg16
+from torchvision.models import vgg16, VGG16_Weights
 
 from numpy import prod
 
@@ -11,7 +11,7 @@ class Vgg16Embedding(Module):
         super().__init__()
         self.register_buffer("mean", tensor([0.485, 0.456, 0.406]).view(-1, 1, 1))
         self.register_buffer("stddev", tensor([0.229, 0.224, 0.225]).view(-1, 1, 1))
-        model = vgg16(pretrained=True)
+        model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
         self.__embeddings = ParameterList(
             [
                 Sequential(*model.features[:5]),
