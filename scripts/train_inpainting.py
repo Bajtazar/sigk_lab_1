@@ -96,19 +96,23 @@ def checkpoint_path(run_name: str) -> str | None:
 
 
 @command()
-@argument("session_metadata_file_path", type=Path(readable=True, exists=True))
-@argument("session_instance_name")
+@argument("run_name", type=str)
+@argument("train_dataset_path", type=Path(exists=True, readable=True))
+@argument("test_dataset_path", type=Path(exists=True, readable=True))
+@option("--workers_num", type=int, default=0)
+@option("--batch_size", type=int, default=16)
+@option("--epochs", type=int, default=500)
+@option("--devices", type=int, default=1)
+@option("--accelerator", type=str, default="gpu")
+@option("--learning_rate", type=float, default=1e-4)
+@option("--epochs_per_test", type=int, default=30)
+@option("--checkpoint_period", type=int, default=5)
 @option(
     "-an",
     "--allow-nondeterministic",
     type=bool,
     is_flag=True,
     default=False,
-    show_default=True,
-    help=(
-        "Allows to run notdeterministic operations if their deterministic version is"
-        " not supported"
-    ),
 )
 def main(
     run_name: str,
