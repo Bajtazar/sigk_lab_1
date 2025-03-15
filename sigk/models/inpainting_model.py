@@ -22,6 +22,7 @@ class AnalysisConvolutionBlock(Module):
             PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
             PartialGDN(channels=out_channels),
             PartialSpectralConv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            PartialGDN(channels=out_channels),
         )
         self.__dwt = PartialDwt2D(
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
@@ -44,6 +45,7 @@ class SynthesisConvolutionBlock(Module):
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
         self.__sequence = UnpackingSequential(
+            PartialIGDN(channels=in_channels),
             PartialSpectralConv2d(in_channels, in_channels, kernel_size=3, padding=1),
             PartialIGDN(channels=in_channels),
             PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
@@ -74,6 +76,7 @@ class AnalysisFusedBlock(Module):
             PartialSpectralFusedMBConv(
                 out_channels,
             ),
+            PartialGDN(channels=out_channels),
         )
         self.__dwt = PartialDwt2D(
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
@@ -93,6 +96,7 @@ class SynthesisFusedBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.__sequence = UnpackingSequential(
+            PartialIGDN(channels=in_channels),
             PartialSpectralFusedMBConv(
                 in_channels,
                 in_channels,
