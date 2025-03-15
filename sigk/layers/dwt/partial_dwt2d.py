@@ -21,6 +21,7 @@ class PartialDwt2D(Dwt2D, PartialDwtBase):
         padding_mode: str = "zeros",
         dtype: Optional[tensor_dtype] = None,
         device: Optional[tensor_device] = None,
+        epsilon: float = 1e-8,
     ) -> None:
         Dwt2D.__init__(
             self,
@@ -30,7 +31,7 @@ class PartialDwt2D(Dwt2D, PartialDwtBase):
             dtype=dtype,
             device=device,
         )
-        PartialDwtBase.__init__(self)
+        PartialDwtBase.__init__(self, epsilon=epsilon)
 
     def __calculate_pass_mask(
         self,

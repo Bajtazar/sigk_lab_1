@@ -27,9 +27,7 @@ class AnalysisConvolutionBlock(Module):
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
 
-    def forward(
-        self, tensor: Tensor, mask: Tensor
-    ) -> tuple[
+    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[
         tuple[Tensor, Tensor],
         tuple[tuple[Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor]],
     ]:
@@ -81,9 +79,7 @@ class AnalysisFusedBlock(Module):
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
 
-    def forward(
-        self, tensor: Tensor, mask: Tensor
-    ) -> tuple[
+    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[
         tuple[Tensor, Tensor],
         tuple[tuple[Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor]],
     ]:
