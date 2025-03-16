@@ -33,16 +33,16 @@ class Debluring(LightningModule):
         self.__loss = MSELoss()
 
     def training_step(self, batch: tuple[Tensor, str], batch_idx: int) -> Tensor:
-        x, _ = batch
-        x_hat = self.__model(x)
+        (x, x_blurred), _ = batch
+        x_hat = self.__model(x_blurred)
         tensor_value_force_assert(x_hat)
         loss = self.__loss(x, x_hat)
         self.log("train loss", loss, batch_size=x.shape[0])
         tensor_value_force_assert(loss)
         return loss
 
-    def __validation_step(self, x: Tensor) -> None:
-        x_hat = self.__model(x)
+    def __validation_step(self, x: Tensor, x_blurred: Tensor) -> None:
+        x_hat = self.__model(x_blurred)
         tensor_value_force_assert(x_hat)
         loss = self.__loss(x, x_hat)
         self.log(
@@ -50,11 +50,16 @@ class Debluring(LightningModule):
         )
         tensor_value_force_assert(loss)
 
-    def __test_step(self, x: Tensor, image_path: str) -> None:
-        x_hat = self.__model(x)
+    def __test_step(self, x: Tensor, x_blurred: Tensor, image_path: str) -> None:
+        x_hat = self.__model(x_blurred)
         self.logger.experiment.add_image(
             f"test_images/{image_path.split('/')[-1]}_recon",
             x_hat.squeeze(0),
+            self.current_epoch,
+        )
+        self.logger.experiment.add_image(
+            f"test_images/{image_path.split('/')[-1]}_blur",
+            x_blurred.squeeze(0),
             self.current_epoch,
         )
         self.logger.experiment.add_image(
@@ -72,13 +77,13 @@ class Debluring(LightningModule):
         if dataloader_idx == 0:
             self.__validation_step(*batch[0])
         elif dataloader_idx == 1:
-            x, (path,) = batch
+            (x, x_blurred), (path,) = batch
             if (
                 self.current_epoch == 0
                 and self.__test_on_first_epoch
                 or ((self.current_epoch + 1) % self.__epochs_per_test == 0)
             ):
-                self.__test_step(x, path)
+                self.__test_step(x, x_blurred, path)
         else:
             raise ValueError(f"({dataloader_idx}) is not a valid dataloader index")
 
