@@ -17,7 +17,8 @@ from torchmetrics.image.ssim import StructuralSimilarityIndexMeasure
 
 from cv2 import cvtColor, COLOR_BGR2RGB, Mat, inpaint, INPAINT_TELEA
 
-from numpy import transpose, mean
+
+from numpy import mean
 
 from typing import Optional
 
@@ -114,11 +115,17 @@ class Inpainting(LightningModule):
 
     @staticmethod
     def __torch_to_opencv(tensor: Tensor) -> Mat:
-        return cvtColor(transpose(tensor.cpu().numpy(), (1, 2, 0)), COLOR_BGR2RGB)
+        transformed = (tensor * 255).to(uint8)
+        if transformed.dim() != 3:
+            transformed = transformed.squeeze(0)
+        array = transformed.cpu().permute(1, 2, 0).numpy()
+        if tensor.dim() == 3:
+            return array
+        return cvtColor(array, COLOR_BGR2RGB)
 
     @staticmethod
     def __opencv_to_torch(image: Mat) -> Tensor:
-        return to_tensor(image)
+        return to_tensor(image).unsqueeze(0).to(float32)
 
     def on_test_start(self) -> None:
         self.__stats = {"psnr": [], "ssim": [], "sse": [], "lpips": []}
@@ -135,8 +142,8 @@ class Inpainting(LightningModule):
         return self.__opencv_to_torch(
             inpaint(
                 self.__torch_to_opencv(masked),
-                self.__torch_to_opencv(mask),
-                3,
+                self.__torch_to_opencv(1.0 - mask[:, 0, ...]),
+                32,
                 INPAINT_TELEA,
             )
         ).to(masked.device)
@@ -151,7 +158,7 @@ class Inpainting(LightningModule):
     def test_step(self, batch: tuple[tuple[Tensor, Tensor], str]) -> None:
         (x, mask), (path,) = batch
         masked_x = x * mask
-        x_hat = (self.__model(masked_x) * 255).to(uint8).to(float32) / 255.0
+        x_hat = (self.__model(masked_x, mask) * 255).to(uint8).to(float32) / 255.0
         baseline = self.__get_baseline(mask, masked_x)
         self.__calculate_stats(x, x_hat, baseline)
         self.logger.experiment.add_image(

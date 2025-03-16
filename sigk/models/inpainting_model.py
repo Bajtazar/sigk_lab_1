@@ -95,14 +95,10 @@ class SynthesisFusedBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.__sequence = UnpackingSequential(
-            PartialSpectralFusedMBConv(
-                in_channels,
-            ),
+            PartialSpectralFusedMBConv(in_channels, in_channels),
             PartialGELU(),
             PartialIGDN(channels=in_channels),
-            PartialSpectralFusedMBConv(
-                in_channels,
-            ),
+            PartialSpectralFusedMBConv(in_channels, in_channels),
             PartialSpectralConv2d(
                 in_channels, out_channels, kernel_size=2, padding=1, groups=out_channels
             ),
