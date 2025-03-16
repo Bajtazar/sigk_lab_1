@@ -22,9 +22,10 @@ from os import listdir
 
 
 IMAGE_SIZE: int = 256
-PATCHES: list[int] = [3, 32]
-PATCHES_COUNT: int = 16
 TRAIN_VALID_SLIT_COEFF: float = 0.8
+KERNEL_SIZES: list[int] = [3, 5]
+SIGMA_MIN: float = 0.1
+SIGMA_MAX: float = 2
 
 
 def get_data_loaders(
@@ -33,8 +34,9 @@ def get_data_loaders(
     dataset = DeblurImageDataset(
         root=train_dataset_path,
         image_size=IMAGE_SIZE,
-        patch_count=PATCHES_COUNT,
-        patch_sizes=PATCHES,
+        kernel_sizes=KERNEL_SIZES,
+        sigma_max=SIGMA_MAX,
+        sigma_min=SIGMA_MIN,
     )
     train_dataset_length = int(TRAIN_VALID_SLIT_COEFF * len(dataset))
     train_dataset, validation_dataset = random_split(
@@ -58,8 +60,9 @@ def get_data_loaders(
         DeblurImageDataset(
             root=test_dataset_path,
             image_size=IMAGE_SIZE,
-            patch_count=PATCHES_COUNT,
-            patch_sizes=PATCHES,
+            kernel_sizes=KERNEL_SIZES,
+            sigma_max=SIGMA_MAX,
+            sigma_min=SIGMA_MIN,
         ),
         batch_size=1,
         shuffle=False,
