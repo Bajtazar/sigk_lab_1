@@ -3,7 +3,7 @@ from lightning import LightningModule
 from sigk.models.debluring_model import DebluringModel
 from sigk.utils.training_utils import tensor_value_force_assert
 
-from torch import Tensor, uint8, float32
+from torch import Tensor, uint8, float32, from_numpy
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import MSELoss
@@ -106,13 +106,27 @@ class Debluring(LightningModule):
         }
         return super().on_test_start()
 
+    def __get_baseline(self, blurred: Tensor, kernel: Tensor) -> Tensor:
+        return (
+            from_numpy(
+                richardson_lucy(blurred.cpu().squeeze(0).numpy(), kernel.cpu().numpy())
+            )
+            .to(blurred.device)
+            .unsqueeze(0)
+        )
+
+    def __calculate_stats(self, x: Tensor, x_hat: Tensor, baseline: Tensor) -> None:
+        for stat, metric in self.__metrics.items():
+            self.__stats[stat].append(metric.to(self.device)(x, x_hat).cpu().item())
+            self.__base_stats[stat].append(
+                metric.to(self.device)(x, baseline).cpu().item()
+            )
+
     def test_step(self, batch: tuple[tuple[Tensor, Tensor], str]) -> None:
-        (x, blurred_x), (path,) = batch
+        (x, blurred_x, kernel), (path,) = batch
         x_hat = (self.__model(blurred_x) * 255).to(uint8).to(float32) / 255.0
-        baseline = richardson_lucy(blurred_x.cpu()).to(x.device)
-        for stat, metric in self.__metrics:
-            self.__stats[stat].append(metric(x, x_hat))
-            self.__base_stats[stat].append(metric(x, baseline))
+        baseline = self.__get_baseline(blurred_x, kernel)
+        self.__calculate_stats(x, x_hat, baseline)
         self.logger.experiment.add_image(
             f"inference_images/{path.split('/')[-1]}_orig",
             x.squeeze(0),
