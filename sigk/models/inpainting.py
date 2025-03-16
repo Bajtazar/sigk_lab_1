@@ -125,7 +125,7 @@ class Inpainting(LightningModule):
 
     @staticmethod
     def __opencv_to_torch(image: Mat) -> Tensor:
-        return to_tensor(image).unsqueeze(0).to(float32)
+        return to_tensor(cvtColor(image, COLOR_BGR2RGB)).unsqueeze(0).to(float32)
 
     def on_test_start(self) -> None:
         self.__stats = {"psnr": [], "ssim": [], "sse": [], "lpips": []}
