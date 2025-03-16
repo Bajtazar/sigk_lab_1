@@ -4,9 +4,20 @@ from sigk.models.inpainting_model import InpaintingModel
 from sigk.loss.inpainting_loss import InpaintingLoss
 from sigk.utils.training_utils import tensor_value_force_assert
 
-from torch import Tensor
+from torch import Tensor, uint8, float32
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.nn import MSELoss
+
+from torchvision.transforms.functional import to_tensor
+
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchmetrics.image.psnr import PeakSignalNoiseRatio
+from torchmetrics.image.ssim import StructuralSimilarityIndexMeasure
+
+from cv2 import cvtColor, COLOR_BGR2RGB, Mat, inpaint, INPAINT_TELEA
+
+from numpy import transpose, mean
 
 from typing import Optional
 
@@ -100,6 +111,74 @@ class Inpainting(LightningModule):
                 self.__test_step(x, mask, path)
         else:
             raise ValueError(f"({dataloader_idx}) is not a valid dataloader index")
+
+    @staticmethod
+    def __torch_to_opencv(tensor: Tensor) -> Mat:
+        return cvtColor(transpose(tensor.cpu().numpy(), (1, 2, 0)), COLOR_BGR2RGB)
+
+    @staticmethod
+    def __opencv_to_torch(image: Mat) -> Tensor:
+        return to_tensor(image)
+
+    def on_test_start(self) -> None:
+        self.__stats = {"psnr": [], "ssim": [], "sse": [], "lpips": []}
+        self.__base_stats = {"psnr": [], "ssim": [], "sse": [], "lpips": []}
+        self.__metrics = {
+            "psnr": PeakSignalNoiseRatio(data_range=1),
+            "lpips": LearnedPerceptualImagePatchSimilarity(),
+            "sse": MSELoss(reduction="sum"),
+            "ssim": StructuralSimilarityIndexMeasure(),
+        }
+        return super().on_test_start()
+
+    def __get_baseline(self, mask: Tensor, masked: Tensor) -> Tensor:
+        return self.__opencv_to_torch(
+            inpaint(
+                self.__torch_to_opencv(masked),
+                self.__torch_to_opencv(mask),
+                3,
+                INPAINT_TELEA,
+            )
+        ).to(masked.device)
+
+    def __calculate_stats(self, x: Tensor, x_hat: Tensor, baseline: Tensor) -> None:
+        for stat, metric in self.__metrics.items():
+            self.__stats[stat].append(metric.to(self.device)(x, x_hat).cpu().item())
+            self.__base_stats[stat].append(
+                metric.to(self.device)(x, baseline).cpu().item()
+            )
+
+    def test_step(self, batch: tuple[tuple[Tensor, Tensor], str]) -> None:
+        (x, mask), (path,) = batch
+        masked_x = x * mask
+        x_hat = (self.__model(masked_x) * 255).to(uint8).to(float32) / 255.0
+        baseline = self.__get_baseline(mask, masked_x)
+        self.__calculate_stats(x, x_hat, baseline)
+        self.logger.experiment.add_image(
+            f"inference_images/{path.split('/')[-1]}_orig",
+            x.squeeze(0),
+            0,
+        )
+        self.logger.experiment.add_image(
+            f"inference_images/{path.split('/')[-1]}_masked",
+            masked_x.squeeze(0),
+            0,
+        )
+        self.logger.experiment.add_image(
+            f"inference_images/{path.split('/')[-1]}_recon", x_hat.squeeze(0), 0
+        )
+        self.logger.experiment.add_image(
+            f"inference_images/{path.split('/')[-1]}_telea", baseline.squeeze(0), 0
+        )
+
+    def on_test_end(self) -> None:
+        super().on_test_end()
+        print("Model")
+        for stat, values in self.__stats.items():
+            print(f"{stat} - {mean(values)}")
+        print("INPAINT_TELEA")
+        for stat, values in self.__base_stats.items():
+            print(f"{stat} - {mean(values)}")
 
     def configure_optimizers(self) -> list[Adam | ReduceLROnPlateau | str]:
         adam = Adam(self.parameters(), lr=self.__learning_rate)
