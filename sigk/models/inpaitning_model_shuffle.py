@@ -7,8 +7,7 @@ from sigk.layers.partial_gdn import PartialGDN, PartialIGDN
 from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
 from sigk.utils.unpacking_sequence import UnpackingSequential
 
-
-from torch import Tensor
+from torch import Tensor, cat
 from torch.nn import Module, ParameterList, PixelShuffle, PixelUnshuffle
 
 
@@ -57,14 +56,14 @@ class AnalysisFusedBlock(Module):
                 in_channels, out_channels, kernel_size=3, padding=1, groups=out_channels
             ),
             PartialSpectralFusedMBConv(
-                in_channels,
+                out_channels,
             ),
-            PartialGDN(channels=in_channels),
+            PartialGDN(channels=out_channels),
             PartialLeakyReLU(),
             PartialSpectralFusedMBConv(
-                in_channels,
+                out_channels,
             ),
-            PartialGDN(channels=in_channels),
+            PartialGDN(channels=out_channels),
             PartialLeakyReLU(),
         )
         self.__unshuffle = PixelUnshuffle(downscale_factor=2)
@@ -123,6 +122,12 @@ class InpaintingModel(Module):
             ]
         )
         self.__low_level_recon = UnpackingSequential(
+            PartialSpectralConv2d(
+                64 * embedding_features,
+                16 * embedding_features,
+                kernel_size=3,
+                padding=1,
+            ),
             PartialGDN(channels=16 * embedding_features),
             PartialMultiheadAttention(
                 channels=16 * embedding_features,
@@ -131,28 +136,37 @@ class InpaintingModel(Module):
                 latent_size=latent_size,
             ),
             PartialIGDN(16 * embedding_features),
+            PartialSpectralConv2d(
+                16 * embedding_features,
+                64 * embedding_features,
+                kernel_size=3,
+                padding=1,
+            ),
         )
         self.__synthesis_blocks = ParameterList(
             [
-                SynthesisFusedBlock(16 * embedding_features, 32 * embedding_features),
-                SynthesisFusedBlock(8 * embedding_features, 16 * embedding_features),
+                SynthesisFusedBlock(32 * embedding_features, 32 * embedding_features),
+                SynthesisFusedBlock(16 * embedding_features, 16 * embedding_features),
                 SynthesisConvolutionBlock(
-                    4 * embedding_features, 8 * embedding_features
+                    8 * embedding_features, 8 * embedding_features
                 ),
                 SynthesisConvolutionBlock(
-                    2 * embedding_features, 4 * embedding_features
+                    4 * embedding_features, 4 * embedding_features
                 ),
-                SynthesisConvolutionBlock(embedding_features, 3),
+                SynthesisConvolutionBlock(2 * embedding_features, 3),
             ]
         )
 
     def forward(self, tensor: Tensor, mask: Tensor) -> Tensor:
         residuals = []
-        ll, ll_mask = tensor, mask
         for block in self.__analysis_blocks:
-            (ll, ll_mask), residual = block(ll, ll_mask)
-            residuals.append(residual)
-        recon, recon_mask = self.__low_level_recon(ll, ll_mask)
-        for block, residue in zip(self.__synthesis_blocks, reversed(residuals)):
-            recon, recon_mask = block(recon, recon_mask, *residue)
-        return recon.clamp(min=0, max=1)
+            tensor, mask = block(tensor, mask)
+            residuals.append((tensor, mask))
+        tensor, mask = self.__low_level_recon(tensor, mask)
+        for block, (old_tensor, old_mask) in zip(
+            self.__synthesis_blocks, reversed(residuals)
+        ):
+            tensor, mask = block(
+                cat((old_tensor, tensor), dim=1), cat((old_mask, mask), dim=1)
+            )
+        return tensor.clamp(min=0, max=1)
