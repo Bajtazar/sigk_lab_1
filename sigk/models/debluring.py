@@ -135,12 +135,12 @@ class Debluring(LightningModule):
         self.logger.experiment.add_image(
             f"inference_images/{path.split('/')[-1]}_recon",
             x_hat.squeeze(0),
-            0,
+            kernel.shape[-1],
         )
         self.logger.experiment.add_image(
             f"inference_images/{path.split('/')[-1]}_richardson_lucy",
             baseline.squeeze(0),
-            0,
+            kernel.shape[-1],
         )
 
     def on_test_end(self) -> None:
