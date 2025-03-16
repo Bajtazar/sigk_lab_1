@@ -12,6 +12,8 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.image.psnr import PeakSignalNoiseRatio
 from torchmetrics.image.ssim import StructuralSimilarityIndexMeasure
 
+from skimage.restoration import richardson_lucy
+
 from numpy import mean
 
 
@@ -95,6 +97,7 @@ class Debluring(LightningModule):
 
     def on_test_start(self) -> None:
         self.__stats = {"psnr": [], "ssim": [], "sse": [], "lpips": []}
+        self.__base_stats = {"psnr": [], "ssim": [], "sse": [], "lpips": []}
         self.__metrics = {
             "psnr": PeakSignalNoiseRatio(data_range=1),
             "lpips": LearnedPerceptualImagePatchSimilarity(),
@@ -106,8 +109,10 @@ class Debluring(LightningModule):
     def test_step(self, batch: tuple[tuple[Tensor, Tensor], str]) -> None:
         (x, blurred_x), (path,) = batch
         x_hat = (self.__model(blurred_x) * 255).to(uint8).to(float32) / 255.0
+        baseline = richardson_lucy(blurred_x.cpu()).to(x.device)
         for stat, metric in self.__metrics:
             self.__stats[stat].append(metric(x, x_hat))
+            self.__base_stats[stat].append(metric(x, baseline))
         self.logger.experiment.add_image(
             f"inference_images/{path.split('/')[-1]}_orig",
             x.squeeze(0),
@@ -118,10 +123,19 @@ class Debluring(LightningModule):
             x_hat.squeeze(0),
             0,
         )
+        self.logger.experiment.add_image(
+            f"inference_images/{path.split('/')[-1]}_richardson_lucy",
+            baseline.squeeze(0),
+            0,
+        )
 
     def on_test_end(self) -> None:
         super().on_test_end()
+        print("Model")
         for stat, values in self.__stats.items():
+            print(f"{stat} - {mean(values)}")
+        print("Richardson-lucy")
+        for stat, values in self.__base_stats.items():
             print(f"{stat} - {mean(values)}")
 
     def configure_optimizers(self) -> list[Adam | ReduceLROnPlateau | str]:
