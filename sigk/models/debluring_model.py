@@ -11,22 +11,22 @@ class DebluringModel(Sequential):
     ) -> None:
         super().__init__(
             SpectralConv2d(
-                input_channels, latent_channels, kernel_size=5, padding=2, stride=1
+                input_channels, latent_channels, kernel_size=9, padding=4, stride=1
             ),
             GDN(latent_channels),
             GELU(),
             SpectralConv2d(
-                latent_channels, latent_channels, kernel_size=5, padding=2, stride=1
+                latent_channels, latent_channels, kernel_size=9, padding=4, stride=1
             ),
             GDN(latent_channels),
             GELU(),
             SpectralConv2d(
-                latent_channels, latent_channels, kernel_size=5, padding=2, stride=1
+                latent_channels, latent_channels, kernel_size=9, padding=4, stride=1
             ),
             GDN(latent_channels),
             GELU(),
             SpectralConv2d(
-                latent_channels, output_channels, kernel_size=5, padding=2, stride=1
+                latent_channels, output_channels, kernel_size=9, padding=4, stride=1
             ),
             Sigmoid(),
         )
