@@ -1,3 +1,4 @@
+For kernel_size=3
 Model
 psnr - 37.40000616073608
 ssim - 0.9777603614330291
