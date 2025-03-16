@@ -19,7 +19,8 @@ dependencies=[
     "tensorboard",
     "pywavelets",
     "scikit-image",
-    "rich"
+    "rich",
+    "opencv-python"
 ]
 
 [tool.setuptools]
