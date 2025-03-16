@@ -109,7 +109,12 @@ class Debluring(LightningModule):
         for stat, metric in self.__metrics:
             self.__stats[stat].append(metric(x, x_hat))
         self.logger.experiment.add_image(
-            f"inference_images/{path.split('/')[-1]}",
+            f"inference_images/{path.split('/')[-1]}_orig",
+            x.squeeze(0),
+            0,
+        )
+        self.logger.experiment.add_image(
+            f"inference_images/{path.split('/')[-1]}_recon",
             x_hat.squeeze(0),
             0,
         )

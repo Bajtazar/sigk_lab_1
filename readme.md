@@ -35,6 +35,9 @@ skiego: 3 × 3, 5 × 5.
 Przygotowanie zbioru danych: należy napisać metodę do rozmywania gaus-
 sowskiego zdjęć np. korzystając z metody GaussianBlur z biblioteki OpenCV
 
+Porównanie wyników: metodą bazową z którą należy porównać stworzone
+rozwiązanie jest richardson lucy z skimage
+
 ### 2.4 Inpainting*
 
 Parametry danych wejściowych: losowe wycinanie obszarów o wielkościach:
