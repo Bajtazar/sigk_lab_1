@@ -20,7 +20,7 @@ class DeblurImageDataset(CompressedImageDataset):
 
         def __call__(self, image: Tensor) -> tuple[Tensor, Tensor]:
             image = image.to(float32) / 255.0
-            return choice(self.__kernel_sizes)(image)
+            return choice(self.__transforms)(image)
 
     def __init__(
         self,
