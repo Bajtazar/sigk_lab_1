@@ -2,6 +2,7 @@ from sigk.layers.dwt.dwt_base import DwtBase
 from sigk.layers.dwt.wavelet import Wavelet, PyWavelet
 
 from torch.nn.functional import pad, conv2d
+from torch.nn import Parameter
 from torch import Tensor, device as tensor_device, dtype as tensor_dtype, stack
 
 from sigk.utils.tensor_utils import pad_value_with_sequence
@@ -37,8 +38,8 @@ class Dwt2D(DwtBase):
         second_pass_kernel = self._generate_pass_kernel(
             2 * channels, dimension=4, main_dimension=-1, factory=factory
         )
-        self.register_buffer("first_pass_kernel", first_pass_kernel)
-        self.register_buffer("second_pass_kernel", second_pass_kernel)
+        self.first_pass_kernel = Parameter(first_pass_kernel)
+        self.second_pass_kernel = Parameter(second_pass_kernel)
 
     @staticmethod
     def __split_tensor_into_bands(

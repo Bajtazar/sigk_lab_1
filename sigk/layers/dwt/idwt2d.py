@@ -1,4 +1,5 @@
 from torch.nn.functional import conv_transpose2d
+from torch.nn import Parameter
 from torch import (
     Tensor,
     device as tensor_device,
@@ -27,8 +28,8 @@ class IDwt2D(DwtBase):
             factory=factory,
             analysis=False,
         )
-        self.register_buffer("first_pass_kernel", first_pass_kernel)
-        self.register_buffer("second_pass_kernel", second_pass_kernel)
+        self.first_pass_kernel = Parameter(first_pass_kernel)
+        self.second_pass_kernel = Parameter(second_pass_kernel)
 
     def _perform_idwt_pass(
         self, tensor: Tensor, kernel: Tensor, position: int, groups: int
