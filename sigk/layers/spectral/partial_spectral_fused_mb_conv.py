@@ -46,6 +46,4 @@ class PartialSpectralFusedMBConv(Module):
         return self.__channels
 
     def forward(self, tensor: Tensor, mask: Tensor) -> tuple[Tensor, Tensor]:
-        tensor = tensor * mask
-        excitation, exc_mask = self.__fused_mb_conv(tensor, mask)
-        return tensor + excitation, (mask + exc_mask).clamp(min=0, max=1)
+        return self.__fused_mb_conv(tensor * mask, mask)

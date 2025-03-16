@@ -3,6 +3,7 @@ from sigk.layers.spectral.partial_spectral_fused_mb_conv import (
     PartialSpectralFusedMBConv,
 )
 from sigk.layers.partial_gdn import PartialGDN, PartialIGDN
+from sigk.layers.partial_gelu import PartialGELU
 from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
 from sigk.layers.dwt import (
     PartialAdaptiveDwt2D,
@@ -45,6 +46,7 @@ class SynthesisConvolutionBlock(Module):
         )
         self.__sequence = UnpackingSequential(
             PartialSpectralConv2d(in_channels, in_channels, kernel_size=3, padding=1),
+            PartialGELU(),
             PartialIGDN(channels=in_channels),
             PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
         )
@@ -97,6 +99,7 @@ class SynthesisFusedBlock(Module):
                 in_channels,
                 in_channels,
             ),
+            PartialGELU(),
             PartialIGDN(channels=in_channels),
             PartialSpectralFusedMBConv(
                 in_channels,

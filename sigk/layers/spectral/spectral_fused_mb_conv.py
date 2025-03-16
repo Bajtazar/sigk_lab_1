@@ -43,4 +43,4 @@ class SpectralFusedMBConv(Module):
         return self.__channels
 
     def forward(self, tensor: Tensor) -> Tensor:
-        return tensor + self.__fused_mb_conv(tensor)
+        return self.__fused_mb_conv(tensor)
