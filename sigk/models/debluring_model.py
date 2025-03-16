@@ -1,4 +1,4 @@
-from torch.nn import Sequential
+from torch.nn import Sequential, GELU, Sigmoid
 from torch import Tensor
 
 from sigk.layers.spectral.spectral_conv2d import SpectralConv2d
@@ -14,18 +14,19 @@ class DebluringModel(Sequential):
                 input_channels, latent_channels, kernel_size=5, padding=2, stride=1
             ),
             GDN(latent_channels),
+            GELU(),
             SpectralConv2d(
                 latent_channels, latent_channels, kernel_size=5, padding=2, stride=1
             ),
             GDN(latent_channels),
+            GELU(),
             SpectralConv2d(
                 latent_channels, latent_channels, kernel_size=5, padding=2, stride=1
             ),
             GDN(latent_channels),
+            GELU(),
             SpectralConv2d(
                 latent_channels, output_channels, kernel_size=5, padding=2, stride=1
             ),
+            Sigmoid(),
         )
-
-    def __call__(self, tensor: Tensor) -> Tensor:
-        return super().forward(tensor).clamp(min=0, max=1)
