@@ -18,6 +18,7 @@ dependencies=[
     "lightning",
     "tensorboard",
     "pywavelets",
+    "scikit-image",
     "rich"
 ]
 
