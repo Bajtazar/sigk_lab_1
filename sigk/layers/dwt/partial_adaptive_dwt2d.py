@@ -1,4 +1,4 @@
-from sigk.layers.dwt.dwt2d import Dwt2D
+from sigk.layers.dwt.adaptive_dwt2d import AdaptiveDwt2D
 from sigk.layers.dwt.wavelet import Wavelet, PyWavelet
 from sigk.layers.dwt.partial_dwt_base import PartialDwtBase
 
@@ -13,7 +13,7 @@ from torch import (
 from typing import Optional
 
 
-class PartialDwt2D(Dwt2D, PartialDwtBase):
+class PartialAdaptiveDwt2D(AdaptiveDwt2D, PartialDwtBase):
     def __init__(
         self,
         channels: int,
@@ -23,7 +23,7 @@ class PartialDwt2D(Dwt2D, PartialDwtBase):
         device: Optional[tensor_device] = None,
         epsilon: float = 1e-8,
     ) -> None:
-        Dwt2D.__init__(
+        AdaptiveDwt2D.__init__(
             self,
             channels=channels,
             wavelet=wavelet,

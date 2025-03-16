@@ -12,7 +12,7 @@ from sigk.layers.dwt.dwt_base import DwtBase
 from sigk.utils.tensor_utils import pad_value_with_sequence
 
 
-class IDwt2D(DwtBase):
+class AdaptiveIDwt2D(DwtBase):
     def _register_wavelet(
         self,
         channels: int,

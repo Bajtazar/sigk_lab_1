@@ -8,7 +8,7 @@ from torch import Tensor, device as tensor_device, dtype as tensor_dtype, stack
 from sigk.utils.tensor_utils import pad_value_with_sequence
 
 
-class Dwt2D(DwtBase):
+class AdaptiveDwt2D(DwtBase):
     __VALID_PADDING_MODES: list[str] = ["zeros", "reflect", "replicate", "circular"]
 
     def __init__(

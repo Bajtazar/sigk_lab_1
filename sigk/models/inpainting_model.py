@@ -5,8 +5,8 @@ from sigk.layers.spectral.partial_spectral_fused_mb_conv import (
 from sigk.layers.partial_gdn import PartialGDN, PartialIGDN
 from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
 from sigk.layers.dwt import (
-    PartialDwt2D,
-    PartialIDwt2D,
+    PartialAdaptiveDwt2D,
+    PartialAdaptiveIDwt2D,
     COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET,
 )
 from sigk.utils.unpacking_sequence import UnpackingSequential
@@ -23,7 +23,7 @@ class AnalysisConvolutionBlock(Module):
             PartialGDN(channels=out_channels),
             PartialSpectralConv2d(out_channels, out_channels, kernel_size=3, padding=1),
         )
-        self.__dwt = PartialDwt2D(
+        self.__dwt = PartialAdaptiveDwt2D(
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
 
@@ -40,7 +40,7 @@ class AnalysisConvolutionBlock(Module):
 class SynthesisConvolutionBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
-        self.__idwt = PartialIDwt2D(
+        self.__idwt = PartialAdaptiveIDwt2D(
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
         self.__sequence = UnpackingSequential(
@@ -75,7 +75,7 @@ class AnalysisFusedBlock(Module):
                 out_channels,
             ),
         )
-        self.__dwt = PartialDwt2D(
+        self.__dwt = PartialAdaptiveDwt2D(
             channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
 
@@ -106,7 +106,7 @@ class SynthesisFusedBlock(Module):
                 in_channels, out_channels, kernel_size=2, padding=1, groups=out_channels
             ),
         )
-        self.__idwt = PartialIDwt2D(
+        self.__idwt = PartialAdaptiveIDwt2D(
             channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
         )
 
