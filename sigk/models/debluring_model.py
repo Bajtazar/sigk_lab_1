@@ -1,5 +1,4 @@
 from torch.nn import Sequential, GELU, Sigmoid
-from torch import Tensor
 
 from sigk.layers.spectral.spectral_conv2d import SpectralConv2d
 from sigk.layers.gdn import GDN

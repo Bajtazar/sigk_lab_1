@@ -2,18 +2,14 @@ from sigk.layers.spectral.partial_spectral_conv_2d import PartialSpectralConv2d
 from sigk.layers.spectral.partial_spectral_fused_mb_conv import (
     PartialSpectralFusedMBConv,
 )
+from sigk.layers.partial_leaky_relu import PartialLeakyReLU
 from sigk.layers.partial_gdn import PartialGDN, PartialIGDN
-from sigk.layers.partial_gelu import PartialGELU
 from sigk.layers.partial_multihead_attention import PartialMultiheadAttention
-from sigk.layers.dwt import (
-    PartialAdaptiveDwt2D,
-    PartialAdaptiveIDwt2D,
-    COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET,
-)
 from sigk.utils.unpacking_sequence import UnpackingSequential
 
+
 from torch import Tensor
-from torch.nn import Module, ParameterList
+from torch.nn import Module, ParameterList, PixelShuffle, PixelUnshuffle
 
 
 class AnalysisConvolutionBlock(Module):
@@ -22,44 +18,35 @@ class AnalysisConvolutionBlock(Module):
         self.__sequence = UnpackingSequential(
             PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
             PartialGDN(channels=out_channels),
+            PartialLeakyReLU(),
             PartialSpectralConv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            PartialGDN(channels=out_channels),
+            PartialLeakyReLU(),
         )
-        self.__dwt = PartialAdaptiveDwt2D(
-            channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
-        )
+        self.__unshuffle = PixelUnshuffle(downscale_factor=2)
 
-    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[
-        tuple[Tensor, Tensor],
-        tuple[tuple[Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor]],
-    ]:
-        (ll, *bands), (ll_mask, *bands_masks) = self.__dwt(
-            *self.__sequence(tensor, mask)
-        )
-        return (ll, ll_mask), (bands, bands_masks)
+    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[Tensor, Tensor]:
+        tensor, mask = self.__sequence(tensor, mask)
+        return self.__unshuffle(tensor), self.__unshuffle(mask)
 
 
 class SynthesisConvolutionBlock(Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
-        self.__idwt = PartialAdaptiveIDwt2D(
-            channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
-        )
+        self.__shuffle = PixelShuffle(upscale_factor=2)
         self.__sequence = UnpackingSequential(
             PartialSpectralConv2d(in_channels, in_channels, kernel_size=3, padding=1),
-            PartialGELU(),
             PartialIGDN(channels=in_channels),
+            PartialLeakyReLU(),
             PartialSpectralConv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            PartialIGDN(channels=out_channels),
+            PartialLeakyReLU(),
         )
 
-    def forward(
-        self,
-        ll: Tensor,
-        ll_mask: Tensor,
-        bands: tuple[Tensor, Tensor, Tensor],
-        bands_masks: tuple[Tensor, Tensor, Tensor],
-    ) -> tuple[Tensor, Tensor]:
-        pre_recon, pre_recon_mask = self.__idwt((ll, *bands), (ll_mask, *bands_masks))
-        return self.__sequence(pre_recon, pre_recon_mask)
+    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[Tensor, Tensor]:
+        tensor = self.__shuffle(tensor)
+        mask = self.__shuffle(mask)
+        return self.__sequence(tensor, mask)
 
 
 class AnalysisFusedBlock(Module):
@@ -67,28 +54,24 @@ class AnalysisFusedBlock(Module):
         super().__init__()
         self.__sequence = UnpackingSequential(
             PartialSpectralConv2d(
-                in_channels, out_channels, kernel_size=3, padding=1, groups=in_channels
+                in_channels, out_channels, kernel_size=3, padding=1, groups=out_channels
             ),
             PartialSpectralFusedMBConv(
-                out_channels,
+                in_channels,
             ),
-            PartialGDN(channels=out_channels),
+            PartialGDN(channels=in_channels),
+            PartialLeakyReLU(),
             PartialSpectralFusedMBConv(
-                out_channels,
+                in_channels,
             ),
+            PartialGDN(channels=in_channels),
+            PartialLeakyReLU(),
         )
-        self.__dwt = PartialAdaptiveDwt2D(
-            channels=out_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
-        )
+        self.__unshuffle = PixelUnshuffle(downscale_factor=2)
 
-    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[
-        tuple[Tensor, Tensor],
-        tuple[tuple[Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor]],
-    ]:
-        (ll, *bands), (ll_mask, *bands_masks) = self.__dwt(
-            *self.__sequence(tensor, mask)
-        )
-        return (ll, ll_mask), (bands, bands_masks)
+    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[Tensor, Tensor]:
+        tensor, mask = self.__sequence(tensor, mask)
+        return self.__unshuffle(tensor), self.__unshuffle(mask)
 
 
 class SynthesisFusedBlock(Module):
@@ -98,28 +81,23 @@ class SynthesisFusedBlock(Module):
             PartialSpectralFusedMBConv(
                 in_channels,
             ),
-            PartialGELU(),
             PartialIGDN(channels=in_channels),
+            PartialLeakyReLU(),
             PartialSpectralFusedMBConv(
                 in_channels,
             ),
+            PartialIGDN(channels=in_channels),
+            PartialLeakyReLU(),
             PartialSpectralConv2d(
-                in_channels, out_channels, kernel_size=2, padding=1, groups=out_channels
+                in_channels, out_channels, kernel_size=3, padding=1, groups=in_channels
             ),
         )
-        self.__idwt = PartialAdaptiveIDwt2D(
-            channels=in_channels, wavelet=COHEN_DAUBECHIES_FEAUVEAU_9_7_WAVELET
-        )
+        self.__shuffle = PixelShuffle(upscale_factor=2)
 
-    def forward(
-        self,
-        ll: Tensor,
-        ll_mask: Tensor,
-        bands: tuple[Tensor, Tensor, Tensor],
-        bands_masks: tuple[Tensor, Tensor, Tensor],
-    ) -> tuple[Tensor, Tensor]:
-        pre_recon, pre_recon_mask = self.__idwt((ll, *bands), (ll_mask, *bands_masks))
-        return self.__sequence(pre_recon, pre_recon_mask)
+    def forward(self, tensor: Tensor, mask: Tensor) -> tuple[Tensor, Tensor]:
+        tensor = self.__shuffle(tensor)
+        mask = self.__shuffle(mask)
+        return self.__sequence(tensor, mask)
 
 
 class InpaintingModel(Module):
@@ -134,12 +112,14 @@ class InpaintingModel(Module):
         self.__analysis_blocks = ParameterList(
             [
                 AnalysisConvolutionBlock(3, embedding_features),
-                AnalysisConvolutionBlock(embedding_features, 2 * embedding_features),
                 AnalysisConvolutionBlock(
-                    2 * embedding_features, 4 * embedding_features
+                    4 * embedding_features, 2 * embedding_features
                 ),
-                AnalysisFusedBlock(4 * embedding_features, 8 * embedding_features),
-                AnalysisFusedBlock(8 * embedding_features, 16 * embedding_features),
+                AnalysisConvolutionBlock(
+                    8 * embedding_features, 4 * embedding_features
+                ),
+                AnalysisFusedBlock(16 * embedding_features, 8 * embedding_features),
+                AnalysisFusedBlock(32 * embedding_features, 16 * embedding_features),
             ]
         )
         self.__low_level_recon = UnpackingSequential(
@@ -154,12 +134,14 @@ class InpaintingModel(Module):
         )
         self.__synthesis_blocks = ParameterList(
             [
-                SynthesisFusedBlock(16 * embedding_features, 8 * embedding_features),
-                SynthesisFusedBlock(8 * embedding_features, 4 * embedding_features),
+                SynthesisFusedBlock(16 * embedding_features, 32 * embedding_features),
+                SynthesisFusedBlock(8 * embedding_features, 16 * embedding_features),
                 SynthesisConvolutionBlock(
-                    4 * embedding_features, 2 * embedding_features
+                    4 * embedding_features, 8 * embedding_features
                 ),
-                SynthesisConvolutionBlock(2 * embedding_features, embedding_features),
+                SynthesisConvolutionBlock(
+                    2 * embedding_features, 4 * embedding_features
+                ),
                 SynthesisConvolutionBlock(embedding_features, 3),
             ]
         )
