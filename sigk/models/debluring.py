@@ -3,10 +3,16 @@ from lightning import LightningModule
 from sigk.models.debluring_model import DebluringModel
 from sigk.utils.training_utils import tensor_value_force_assert
 
-from torch import Tensor
+from torch import Tensor, uint8, float32
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import MSELoss
+
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchmetrics.image.psnr import PeakSignalNoiseRatio
+from torchmetrics.image.ssim import StructuralSimilarityIndexMeasure
+
+from numpy import mean
 
 
 class Debluring(LightningModule):
@@ -86,6 +92,32 @@ class Debluring(LightningModule):
                 self.__test_step(x, x_blurred, path)
         else:
             raise ValueError(f"({dataloader_idx}) is not a valid dataloader index")
+
+    def on_test_start(self) -> None:
+        self.__stats = {"psnr": [], "ssim": [], "sse": [], "lpips": []}
+        self.__metrics = {
+            "psnr": PeakSignalNoiseRatio(data_range=1),
+            "lpips": LearnedPerceptualImagePatchSimilarity(),
+            "sse": MSELoss(reduction="sum"),
+            "ssim": StructuralSimilarityIndexMeasure(),
+        }
+        return super().on_test_start()
+
+    def test_step(self, batch: tuple[tuple[Tensor, Tensor], str]) -> None:
+        (x, blurred_x), (path,) = batch
+        x_hat = (self.__model(blurred_x) * 255).to(uint8).to(float32) / 255.0
+        for stat, metric in self.__metrics:
+            self.__stats[stat].append(metric(x, x_hat))
+        self.logger.experiment.add_image(
+            f"inference_images/{path.split('/')[-1]}",
+            x_hat.squeeze(0),
+            0,
+        )
+
+    def on_test_end(self) -> None:
+        super().on_test_end()
+        for stat, values in self.__stats.items():
+            print(f"{stat} - {mean(values)}")
 
     def configure_optimizers(self) -> list[Adam | ReduceLROnPlateau | str]:
         adam = Adam(self.parameters(), lr=self.__learning_rate)
