@@ -10,6 +10,7 @@ dependencies=[
     "black",
     "torch",
     "torchvision",
+    "torchmetrics",
     "ruff",
     "wget",
     "numpy",
@@ -17,7 +18,6 @@ dependencies=[
     "lightning",
     "tensorboard",
     "pywavelets",
-    "pytest",
     "rich"
 ]
 
