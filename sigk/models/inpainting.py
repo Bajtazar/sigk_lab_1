@@ -1,6 +1,6 @@
 from lightning import LightningModule
 
-from sigk.models.inpainting_model import InpaintingModel
+from sigk.models.inpainting_model_shuffle import InpaintingModelShuffle
 from sigk.loss.inpainting_loss import InpaintingLoss
 from sigk.utils.training_utils import tensor_value_force_assert
 
@@ -38,7 +38,7 @@ class Inpainting(LightningModule):
         super().__init__()
         self.__epochs_per_test = epochs_per_test
         self.__test_on_first_epoch = test_on_first_epoch
-        self.__model = InpaintingModel(
+        self.__model = InpaintingModelShuffle(
             embedding_features=embedding_features,
             attention_heads=attention_heads,
             latent_size=latent_size,

@@ -143,7 +143,7 @@ def main(
         test_on_first_epoch=True,
         embedding_features=64,
         attention_heads=64,
-        latent_size=15,
+        latent_size=8,
     )
 
     train_loader, validation_loader = get_data_loaders(

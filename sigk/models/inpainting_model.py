@@ -12,7 +12,7 @@ from sigk.layers.dwt import (
 )
 from sigk.utils.unpacking_sequence import UnpackingSequential
 
-from torch import Tensor, chunk, cat
+from torch import Tensor, cat
 from torch.nn import Module, ParameterList
 
 
