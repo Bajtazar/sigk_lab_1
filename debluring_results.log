@@ -1,4 +1,3 @@
-For kernel_size=3
 Model
 psnr - 37.40000616073608
 ssim - 0.9777603614330291
@@ -9,7 +8,7 @@ psnr - 34.18054010391236
 ssim - 0.9073732548952103
 sse - 1496.039383163968
 lpips - 0.11820577619078163
-Testing ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100/100 0:00:22 • 0:00:00 4.39it/s
+Testing ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100/100 0:00:22 • 0:00:00 4.42it/s
 For kernel_size=5
 Restoring states from the checkpoint path at models/debluring_run_3/checkpoints/epoch=1979-step=79200.ckpt
 LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
